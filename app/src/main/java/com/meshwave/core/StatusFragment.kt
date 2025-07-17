@@ -1,3 +1,6 @@
+// StatusFragment.kt
+// VERSÃO COM NOMES DE MÉTODOS E CAMPOS ATUALIZADOS
+
 package com.meshwave.core
 
 import android.os.Bundle
@@ -10,10 +13,9 @@ import androidx.fragment.app.Fragment
 
 class StatusFragment : Fragment() {
 
-    // Declaração das Views que vamos controlar.
-    private lateinit var textViewDid: TextView
+    private lateinit var textViewCpaOrigin: TextView // Renomeado de textViewDid
     private lateinit var textViewUsername: TextView
-    private lateinit var textViewGeohash: TextView
+    private lateinit var textViewNodeLocation: TextView // Renomeado de textViewGeohash
     private lateinit var textViewWifiStatus: TextView
     private lateinit var textViewLocalCache: TextView
     private lateinit var textViewRemoteCache: TextView
@@ -24,13 +26,11 @@ class StatusFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        // Infla (cria) a view a partir do nosso arquivo de layout XML.
         val view = inflater.inflate(R.layout.fragment_status, container, false)
 
-        // Conecta cada variável de View ao seu componente correspondente no layout.
-        textViewDid = view.findViewById(R.id.textViewDid)
+        textViewCpaOrigin = view.findViewById(R.id.textViewCpaOrigin) // ID atualizado
         textViewUsername = view.findViewById(R.id.textViewUsername)
-        textViewGeohash = view.findViewById(R.id.textViewGeohash)
+        textViewNodeLocation = view.findViewById(R.id.textViewNodeLocation) // ID atualizado
         textViewWifiStatus = view.findViewById(R.id.textViewWifiStatus)
         textViewLocalCache = view.findViewById(R.id.textViewLocalCache)
         textViewRemoteCache = view.findViewById(R.id.textViewRemoteCache)
@@ -40,46 +40,46 @@ class StatusFragment : Fragment() {
         return view
     }
 
-    // --- Métodos Públicos para a MainActivity usar ---
-
-    fun updateDid(did: String) {
-        if (this::textViewDid.isInitialized) {
-            textViewDid.text = "DID: $did"
+    // ✅ Método renomeado para clareza
+    fun updateCpaOrigin(cpaGeohash: String) {
+        if (::textViewCpaOrigin.isInitialized) {
+            textViewCpaOrigin.text = "CPA de Origem: $cpaGeohash"
         }
     }
 
     fun updateUsername(username: String) {
-        if (this::textViewUsername.isInitialized) {
+        if (::textViewUsername.isInitialized) {
             textViewUsername.text = "Username: $username"
         }
     }
 
-    fun updateGeohash(geohash: String) {
-        if (this::textViewGeohash.isInitialized) {
-            textViewGeohash.text = "Geohash: $geohash"
+    // ✅ Método renomeado para clareza
+    fun updateGeohash(nodeGeohash: String) {
+        if (::textViewNodeLocation.isInitialized) {
+            textViewNodeLocation.text = "Localização Atual: $nodeGeohash"
         }
     }
 
     fun updateWifiStatus(status: String) {
-        if (this::textViewWifiStatus.isInitialized) {
+        if (::textViewWifiStatus.isInitialized) {
             textViewWifiStatus.text = "Wi-Fi Direct: $status"
         }
     }
 
     fun updateLocalCache(cache: String) {
-        if (this::textViewLocalCache.isInitialized) {
+        if (::textViewLocalCache.isInitialized) {
             textViewLocalCache.text = cache
         }
     }
 
     fun updateRemoteCache(cache: String) {
-        if (this::textViewRemoteCache.isInitialized) {
+        if (::textViewRemoteCache.isInitialized) {
             textViewRemoteCache.text = cache
         }
     }
 
     fun addLog(logMessage: String) {
-        if (this::textViewLog.isInitialized) {
+        if (::textViewLog.isInitialized) {
             textViewLog.append("\n$logMessage")
             logScrollView.post { logScrollView.fullScroll(View.FOCUS_DOWN) }
         }

@@ -1,5 +1,5 @@
 <!-- app/src/main/res/layout/fragment_status.xml -->
-<!-- VERSÃO CORRIGIDA - Usando estilo direto -->
+<!-- VERSÃO COM RÓTULOS E IDS ATUALIZADOS -->
 
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
@@ -7,14 +7,14 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp"
-    tools:context=".ui.status.StatusFragment">
+    tools:context=".StatusFragment">
 
-    <!-- Seção de Status Fixo -->
+    <!-- ✅ Rótulo e ID atualizados -->
     <TextView
-        android:id="@+id/textViewDid"
+        android:id="@+id/textViewCpaOrigin"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="DID: N/A"
+        android:text="CPA de Origem: N/A"
         android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
 
     <TextView
@@ -25,12 +25,13 @@
         android:text="Username: N/A"
         android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
 
+    <!-- ✅ Rótulo e ID atualizados -->
     <TextView
-        android:id="@+id/textViewGeohash"
+        android:id="@+id/textViewNodeLocation"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="Geohash: N/A"
+        android:text="Localização Atual: N/A"
         android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
 
     <TextView

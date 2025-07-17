@@ -1,5 +1,5 @@
 // LocationModule.kt
-// VERSÃO CORRIGIDA COM ANOTAÇÃO PARA O LINT
+// VERSÃO COMPLETA E REATORADA PARA MÚLTIPLOS NÍVEIS DE GEOHASH
 
 package com.meshwave.core
 
@@ -30,6 +30,7 @@ class LocationModule(private val context: Context, private val uiHandler: Handle
         fetchLocation()
     }
 
+    @SuppressLint("MissingPermission")
     private fun fetchLocation() {
         if (ActivityCompat.checkSelfPermission(
                 context,
@@ -38,34 +39,35 @@ class LocationModule(private val context: Context, private val uiHandler: Handle
         ) {
             Log.w(TAG, "Permissão de localização não concedida.")
             logToUi("[Loc] Falha: Permissão negada.")
-            sendGeohashUpdate("g9fail_permission")
+            val failData = LocationData("g9fail_permission", "g9fail_permission_area")
+            sendGeohashUpdate(failData)
             return
         }
 
         logToUi("[Loc] Permissão OK. Solicitando localização...")
-
-        // --- INÍCIO DA CORREÇÃO ---
-        // Adicionamos esta anotação para informar ao Lint que a verificação de permissão
-        // já foi feita no bloco 'if' acima.
-        @SuppressLint("MissingPermission")
-        // --- FIM DA CORREÇÃO ---
         fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
             .addOnSuccessListener { location ->
                 if (location != null) {
-                    val geohash = GeoHash.withCharacterPrecision(location.latitude, location.longitude, 9)
-                    Log.i(TAG, "Localização obtida com sucesso. Geohash: ${geohash.toBase32()}")
+                    val nodeGeohash = GeoHash.withCharacterPrecision(location.latitude, location.longitude, 9)
+                    val areaGeohash = GeoHash.withCharacterPrecision(location.latitude, location.longitude, 6)
+
+                    Log.i(TAG, "Localização obtida. Geohash Nó (9): ${nodeGeohash.toBase32()}, Geohash Área (6): ${areaGeohash.toBase32()}")
                     logToUi("[Loc] Sucesso: Localização obtida.")
-                    sendGeohashUpdate(geohash.toBase32())
+
+                    val successData = LocationData(nodeGeohash.toBase32(), areaGeohash.toBase32())
+                    sendGeohashUpdate(successData)
                 } else {
                     Log.e(TAG, "Falha ao obter localização: objeto de localização é nulo.")
                     logToUi("[Loc] Falha: API retornou localização nula.")
-                    sendGeohashUpdate("g9fail_null")
+                    val failData = LocationData("g9fail_null", "g9fail_null_area")
+                    sendGeohashUpdate(failData)
                 }
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "Falha ao obter localização via API.", e)
                 logToUi("[Loc] Falha: Erro na API do Google.")
-                sendGeohashUpdate("g9fail_api")
+                val failData = LocationData("g9fail_api", "g9fail_api_area")
+                sendGeohashUpdate(failData)
             }
     }
 
@@ -74,8 +76,15 @@ class LocationModule(private val context: Context, private val uiHandler: Handle
         uiHandler.sendMessage(msg)
     }
 
-    private fun sendGeohashUpdate(data: String) {
+    private fun sendGeohashUpdate(data: LocationData) {
         val msg = uiHandler.obtainMessage(GEOHASH_UPDATE, data)
         uiHandler.sendMessage(msg)
     }
 }
+
+/**
+ * Uma estrutura de dados para guardar os diferentes níveis de precisão do Geohash.
+ * @param nodeGeohash O Geohash de alta precisão (nível 9) para a localização exata do nó.
+ * @param areaGeohash O Geohash de média precisão (nível 6) para identificar a CLA/CPA.
+ */
+data class LocationData(val nodeGeohash: String, val areaGeohash: String)

@@ -1,3 +1,6 @@
+// MainActivity.kt
+// VERSÃO COM ORQUESTRAÇÃO CORRIGIDA
+
 package com.meshwave.core
 
 import android.Manifest
@@ -17,6 +20,7 @@ import androidx.fragment.app.FragmentTransaction
 class MainActivity : AppCompatActivity() {
 
     private val PERMISSIONS_REQUEST_CODE = 100
+    private var permissionsRequested = false
 
     private lateinit var identityModule: IdentityModule
     private lateinit var locationModule: LocationModule
@@ -28,25 +32,37 @@ class MainActivity : AppCompatActivity() {
 
             when (msg.what) {
                 LocationModule.GEOHASH_UPDATE -> {
-                    val geohash = msg.obj as String
-                    statusFragment.updateGeohash(geohash)
-                    statusFragment.addLog("[Main] Geohash recebido: $geohash")
+                    val locationData = msg.obj as LocationData
+                    statusFragment.updateGeohash(locationData.nodeGeohash) // Atualiza a localização precisa
+                    statusFragment.addLog("[Main] Geohash Nó(9) recebido: ${locationData.nodeGeohash}")
+                    statusFragment.addLog("[Main] Geohash Área(6) recebido: ${locationData.areaGeohash}")
+
+                    // ✅ CORREÇÃO CRÍTICA: Conectando os módulos
+                    // Passa o Geohash da área para o IdentityModule iniciar a geração do CPA.
+                    if (::identityModule.isInitialized) {
+                        identityModule.receiveAreaGeohash(locationData.areaGeohash)
+                    }
                 }
-                IdentityModule.IDENTITY_UPDATE -> {
-                    val identity = msg.obj as Array<String>
-                    val did = identity[0]
-                    val username = identity[1]
-                    statusFragment.updateDid(did)
-                    statusFragment.updateUsername(username)
-                    statusFragment.addLog("[Main] Identidade recebida.")
+                IdentityModule.CPA_UPDATE -> {
+                    val cpa = msg.obj as NodeCPA
+                    statusFragment.addLog("[Main] CPA Recebido.")
+                    // Atualiza a UI com os dados do CPA
+                    statusFragment.updateCpaOrigin(cpa.cpaGeohash) // Antigo DID, agora CPA de Origem
+                    statusFragment.updateUsername(cpa.username)
+                    statusFragment.updateLocalCache(cpa.toString()) // Exibe o CPA completo no campo de cache
                 }
-                LocationModule.LOG_UPDATE -> { // Reutilizamos o LOG_UPDATE
-                    val logMessage = msg.obj as String
-                    statusFragment.addLog(logMessage)
+                LocationModule.LOG_UPDATE -> {
+                    if (msg.obj is String) {
+                        val logMessage = msg.obj as String
+                        statusFragment.addLog(logMessage)
+                    }
                 }
             }
         }
     }
+
+    // ... (Restante do código da MainActivity permanece o mesmo)
+    // ... (onCreate, onResume, checkAndRequestPermissions, etc.)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,13 +72,18 @@ class MainActivity : AppCompatActivity() {
             statusFragment = StatusFragment()
             loadFragment(statusFragment)
         }
-        checkAndRequestPermissions()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (!permissionsRequested) {
+            checkAndRequestPermissions()
+        }
     }
 
     private fun checkAndRequestPermissions() {
-        val requiredPermissions = arrayOf(
-            Manifest.permission.ACCESS_FINE_LOCATION
-        )
+        permissionsRequested = true
+        val requiredPermissions = arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
         val permissionsToRequest = requiredPermissions.filter {
             ActivityCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
@@ -87,12 +108,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun initializeModules() {
         if (::locationModule.isInitialized) return
-
         Log.d("MainActivity", "Inicializando os módulos...")
-
         locationModule = LocationModule(this, uiHandler)
         locationModule.start()
-
         identityModule = IdentityModule(this, uiHandler)
         identityModule.start()
     }
