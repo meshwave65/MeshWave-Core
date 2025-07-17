@@ -1,13 +1,13 @@
 // LocationModule.kt
-// VERSÃO FINAL COM COMUNICAÇÃO VIA HANDLER
+// VERSÃO CORRIGIDA COM ANOTAÇÃO PARA O LINT
 
 package com.meshwave.core
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import ch.hsr.geohash.GeoHash
@@ -19,7 +19,6 @@ class LocationModule(private val context: Context, private val uiHandler: Handle
     private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
     private val TAG = "LocationModule"
 
-    // Novos códigos de mensagem para o Handler
     companion object {
         const val GEOHASH_UPDATE = 10
         const val LOG_UPDATE = 99
@@ -44,6 +43,12 @@ class LocationModule(private val context: Context, private val uiHandler: Handle
         }
 
         logToUi("[Loc] Permissão OK. Solicitando localização...")
+
+        // --- INÍCIO DA CORREÇÃO ---
+        // Adicionamos esta anotação para informar ao Lint que a verificação de permissão
+        // já foi feita no bloco 'if' acima.
+        @SuppressLint("MissingPermission")
+        // --- FIM DA CORREÇÃO ---
         fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
             .addOnSuccessListener { location ->
                 if (location != null) {
@@ -64,13 +69,11 @@ class LocationModule(private val context: Context, private val uiHandler: Handle
             }
     }
 
-    // Envia uma mensagem de log para a MainActivity
     private fun logToUi(message: String) {
         val msg = uiHandler.obtainMessage(LOG_UPDATE, message)
         uiHandler.sendMessage(msg)
     }
 
-    // Envia o resultado (Geohash ou falha) para a MainActivity
     private fun sendGeohashUpdate(data: String) {
         val msg = uiHandler.obtainMessage(GEOHASH_UPDATE, data)
         uiHandler.sendMessage(msg)
