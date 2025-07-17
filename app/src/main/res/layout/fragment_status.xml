@@ -1,4 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
+<!-- app/src/main/res/layout/fragment_status.xml -->
+<!-- VERSÃO COM RÓTULOS E IDS ATUALIZADOS -->
+
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -7,27 +9,30 @@
     android:padding="16dp"
     tools:context=".StatusFragment">
 
-    <!-- Seção de Status Fixo -->
+    <!-- ✅ Rótulo e ID atualizados -->
     <TextView
-        android:id="@+id/textViewDid"
+        android:id="@+id/textViewCpaOrigin"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="DID: N/A"
-        android:textAppearance="?attr/textAppearanceMedium" />
+        android:text="CPA de Origem: N/A"
+        android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
 
     <TextView
         android:id="@+id/textViewUsername"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
         android:text="Username: N/A"
-        android:textAppearance="?attr/textAppearanceMedium" />
+        android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
 
+    <!-- ✅ Rótulo e ID atualizados -->
     <TextView
-        android:id="@+id/textViewGeohash"
+        android:id="@+id/textViewNodeLocation"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Geohash: N/A"
-        android:textAppearance="?attr/textAppearanceMedium" />
+        android:layout_marginTop="4dp"
+        android:text="Localização Atual: N/A"
+        android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
 
     <TextView
         android:id="@+id/textViewWifiStatus"
@@ -35,7 +40,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:text="Wi-Fi Direct: N/A"
-        android:textAppearance="?attr/textAppearanceMedium"
+        android:textAppearance="@style/TextAppearance.AppCompat.Medium"
         android:textStyle="bold" />
 
     <!-- Seção de Caches -->
@@ -49,8 +54,8 @@
         android:id="@+id/textViewLocalCache"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="{Aguardando Módulos...}"
-        android:background="#F0F0F0"
+        android:text="{vazio}"
+        android:background="#E0E0E0"
         android:padding="4dp"
         android:minLines="2"/>
 
@@ -64,8 +69,8 @@
         android:id="@+id/textViewRemoteCache"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="{Desconectado}"
-        android:background="#F0F0F0"
+        android:text="{desconectado}"
+        android:background="#E0E0E0"
         android:padding="4dp"
         android:minLines="2"/>
 
@@ -89,10 +94,9 @@
             android:id="@+id/textViewLog"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/white"
+            android:textColor="#FFFFFF"
             android:fontFamily="monospace"
-            android:text="Painel de Controle Iniciado..." />
+            android:text="Iniciando..." />
     </ScrollView>
 
 </LinearLayout>
-

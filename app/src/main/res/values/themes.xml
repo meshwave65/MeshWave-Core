@@ -1,5 +1,18 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
+<!-- app/src/main/res/values/themes.xml -->
+<!-- VERSÃO CORRIGIDA - Usando um tema AppCompat -->
 
-    <style name="Theme.MeshWaveCore" parent="android:Theme.Material.Light.NoActionBar" />
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.MeshWaveCore" parent="Theme.AppCompat.DayNight.DarkActionBar">
+        <!--
+            O tema base do aplicativo.
+            Theme.AppCompat.DayNight.DarkActionBar é um tema compatível que
+            funciona com AppCompatActivity e fornece uma barra de ação.
+            Ele também se adapta automaticamente aos modos claro e escuro.
+        -->
+        <!-- Customize your light theme here. -->
+        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+    </style>
+
+    <style name="Theme.MeshWaveCore" parent="Base.Theme.MeshWaveCore" />
 </resources>
