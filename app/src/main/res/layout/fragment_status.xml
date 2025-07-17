@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    tools:context=".StatusFragment">
+
+    <!-- Seção de Status Fixo -->
+    <TextView
+        android:id="@+id/textViewDid"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="DID: N/A"
+        android:textAppearance="?attr/textAppearanceMedium" />
+
+    <TextView
+        android:id="@+id/textViewUsername"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Username: N/A"
+        android:textAppearance="?attr/textAppearanceMedium" />
+
+    <TextView
+        android:id="@+id/textViewGeohash"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Geohash: N/A"
+        android:textAppearance="?attr/textAppearanceMedium" />
+
+    <TextView
+        android:id="@+id/textViewWifiStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Wi-Fi Direct: N/A"
+        android:textAppearance="?attr/textAppearanceMedium"
+        android:textStyle="bold" />
+
+    <!-- Seção de Caches -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Meu Cache (CPA ):"
+        android:textStyle="bold"/>
+    <TextView
+        android:id="@+id/textViewLocalCache"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="{Aguardando Módulos...}"
+        android:background="#F0F0F0"
+        android:padding="4dp"
+        android:minLines="2"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Cache do Parceiro:"
+        android:textStyle="bold"/>
+    <TextView
+        android:id="@+id/textViewRemoteCache"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="{Desconectado}"
+        android:background="#F0F0F0"
+        android:padding="4dp"
+        android:minLines="2"/>
+
+    <!-- Console de Log -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Log de Eventos:"
+        android:textStyle="bold"/>
+
+    <ScrollView
+        android:id="@+id/logScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#333333"
+        android:padding="4dp">
+
+        <TextView
+            android:id="@+id/textViewLog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@android:color/white"
+            android:fontFamily="monospace"
+            android:text="Painel de Controle Iniciado..." />
+    </ScrollView>
+
+</LinearLayout>
+
