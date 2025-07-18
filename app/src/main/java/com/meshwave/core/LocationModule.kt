@@ -1,9 +1,11 @@
+// Local: app/src/main/java/com/meshwave/core/LocationModule.kt
 package com.meshwave.core
 
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import ch.hsr.geohash.GeoHash
@@ -15,45 +17,63 @@ class LocationModule(private val context: Context, private val uiHandler: Handle
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val TAG = "LocationModule"
+    private val locationHandler = Handler(Looper.getMainLooper())
+    private var isRunning = false
+
+    companion object {
+        private const val UPDATE_INTERVAL_MS = 30000L // Atualiza a cada 30 segundos
+    }
+
+    private val locationRunnable = object : Runnable {
+        override fun run() {
+            if (isRunning) {
+                requestLocation()
+                locationHandler.postDelayed(this, UPDATE_INTERVAL_MS)
+            }
+        }
+    }
 
     fun start() {
-        Log.d(TAG, "Iniciando módulo de localização...")
+        if (isRunning) return
+        Log.d(TAG, "Iniciando ciclo de atualização de localização...")
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-        requestLocation()
+        isRunning = true
+        locationHandler.post(locationRunnable) // Inicia o ciclo imediatamente
+    }
+
+    fun stop() {
+        if (!isRunning) return
+        Log.d(TAG, "Parando ciclo de atualização de localização.")
+        isRunning = false
+        locationHandler.removeCallbacks(locationRunnable)
     }
 
     private fun requestLocation() {
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-            ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            Log.w(TAG, "Permissão de localização não concedida.")
-            sendGeohashUpdate(MainActivity.LOG_UPDATE, "[Loc] Falha: Permissão negada.")
-            sendGeohashUpdate(MainActivity.LOCATION_UPDATE, LocationData("g9fail_permission", "g9fail_permission"))
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            sendToUi(MainActivity.LOG_UPDATE, "[Loc] Falha: Permissão negada.")
             return
         }
 
-        Log.d(TAG, "Permissão OK. Solicitando localização...")
+        sendToUi(MainActivity.LOG_UPDATE, "[Loc] Solicitando localização...")
         fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
             .addOnSuccessListener { location ->
                 if (location != null) {
                     val nodeGeohash = GeoHash.withCharacterPrecision(location.latitude, location.longitude, 9).toBase32()
                     val areaGeohash = GeoHash.withCharacterPrecision(location.latitude, location.longitude, 6).toBase32()
-                    Log.i(TAG, "Localização obtida. Geohash Nó (9): $nodeGeohash, Geohash Área (6): $areaGeohash")
-                    sendGeohashUpdate(MainActivity.LOG_UPDATE, "[Loc] Sucesso: Localização obtida.")
-                    sendGeohashUpdate(MainActivity.LOCATION_UPDATE, LocationData(nodeGeohash, areaGeohash))
+                    sendToUi(MainActivity.LOG_UPDATE, "[Loc] Sucesso: Localização obtida.")
+                    sendToUi(MainActivity.LOCATION_UPDATE, LocationData(nodeGeohash, areaGeohash))
                 } else {
                     Log.e(TAG, "Falha ao obter localização: objeto location é nulo.")
-                    sendGeohashUpdate(MainActivity.LOG_UPDATE, "[Loc] Falha: Localização nula.")
-                    sendGeohashUpdate(MainActivity.LOCATION_UPDATE, LocationData("g9fail_null", "g9fail_null"))
+                    sendToUi(MainActivity.LOG_UPDATE, "[Loc] Falha: Localização nula.")
                 }
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "Erro na API de localização: ", e)
-                sendGeohashUpdate(MainActivity.LOG_UPDATE, "[Loc] Falha: API error - ${e.message}")
-                sendGeohashUpdate(MainActivity.LOCATION_UPDATE, LocationData("g9fail_api", "g9fail_api"))
+                sendToUi(MainActivity.LOG_UPDATE, "[Loc] Falha: API error - ${e.message}")
             }
     }
 
-    private fun sendGeohashUpdate(what: Int, data: Any) {
+    private fun sendToUi(what: Int, data: Any) {
         val msg = uiHandler.obtainMessage(what, data)
         uiHandler.sendMessage(msg)
     }
