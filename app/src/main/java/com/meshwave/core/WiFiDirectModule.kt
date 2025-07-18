@@ -36,30 +36,39 @@ class WiFiDirectModule(
     private val receiver: BroadcastReceiver
     private val intentFilter = IntentFilter()
     private var isConnected = false
+    private val discoveredPeers = mutableListOf<WifiP2pDevice>()
+    private var myDeviceAddress: String? = null
 
     private val connectionInfoListener = WifiP2pManager.ConnectionInfoListener { info ->
         if (info.groupFormed && info.isGroupOwner) {
-            Log.d(TAG, "Este dispositivo é o Dono do Grupo (Servidor).")
             sendToUi("Conectado como Servidor")
             ServerTask().execute()
         } else if (info.groupFormed) {
-            Log.d(TAG, "Este dispositivo é o Cliente.")
             sendToUi("Conectado como Cliente")
-            ClientTask(info.groupOwnerAddress.hostAddress).execute(identityModule.getCurrentCPA())
+            ClientTask(info.groupOwnerAddress?.hostAddress).execute(identityModule.getCurrentCPA())
         }
     }
 
     private val peerListListener = WifiP2pManager.PeerListListener { peerList ->
-        val refreshedPeers = peerList.deviceList
-        if (refreshedPeers.isEmpty()) {
+        discoveredPeers.clear()
+        discoveredPeers.addAll(peerList.deviceList)
+
+        if (discoveredPeers.isEmpty()) {
             Log.d(TAG, "Nenhum par encontrado.")
             return@PeerListListener
         }
 
-        if (!isConnected) {
-            val device = refreshedPeers.first()
-            Log.d(TAG, "Par encontrado: ${device.deviceName}. Tentando conectar...")
-            connectToDevice(device)
+        val peerNames = discoveredPeers.joinToString { it.deviceName }
+        sendToUi("Pares visíveis: $peerNames")
+
+        if (!isConnected && discoveredPeers.isNotEmpty()) {
+            val partner = discoveredPeers.first()
+            if (myDeviceAddress != null && partner.deviceAddress != null && myDeviceAddress!! > partner.deviceAddress) {
+                Log.d(TAG, "Nosso endereço ($myDeviceAddress) é maior. Iniciando conexão com ${partner.deviceName}")
+                connectToDevice(partner)
+            } else {
+                Log.d(TAG, "Endereço do parceiro (${partner.deviceAddress}) é maior ou igual. Aguardando convite.")
+            }
         }
     }
 
@@ -84,77 +93,117 @@ class WiFiDirectModule(
             sendToUi("Serviço P2P indisponível")
             return
         }
-        if (channel != null) {
-            discoverPeers()
-            return
-        }
+        if (channel != null) return
+
         channel = wifiP2pManager?.initialize(context, Looper.getMainLooper()) {
-            Log.e(TAG, "Canal do Wi-Fi P2P foi desconectado.")
-            sendToUi("Canal P2P perdido")
             channel = null
             isConnected = false
+            sendToUi("Canal P2P perdido")
         }
+
         if (channel == null) {
             sendToUi("Falha na inicialização")
             return
         }
+
         context.registerReceiver(receiver, intentFilter)
-        sendToUi("Iniciado")
-        discoverPeers()
+        createGroupAndDiscover()
+    }
+
+    fun stop() {
+        removeCurrentGroup {
+            if (channel != null) {
+                try {
+                    context.unregisterReceiver(receiver)
+                } catch (e: IllegalArgumentException) {
+                    Log.w(TAG, "Receiver não estava registrado.", e)
+                }
+                channel = null
+                isConnected = false
+                sendToUi("Parado")
+            }
+        }
+    }
+
+    private fun createGroupAndDiscover() {
+        removeCurrentGroup {
+            createGroup {
+                discoverPeers()
+            }
+        }
     }
 
     private fun discoverPeers() {
-        if (channel == null) {
-            sendToUi("Erro: Canal P2P nulo")
-            return
-        }
-        val requiredPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            listOf(Manifest.permission.NEARBY_WIFI_DEVICES, Manifest.permission.ACCESS_FINE_LOCATION)
-        } else {
-            listOf(Manifest.permission.ACCESS_FINE_LOCATION)
-        }
-        if (requiredPermissions.any { ActivityCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }) {
-            sendToUi("Permissões faltando para buscar")
-            return
-        }
+        if (channel == null) return
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
         wifiP2pManager?.discoverPeers(channel, object : WifiP2pManager.ActionListener {
             override fun onSuccess() {
                 sendToUi("Buscando pares...")
             }
-            override fun onFailure(reasonCode: Int) {
-                sendToUi("Erro ao buscar: $reasonCode")
+
+            override fun onFailure(reason: Int) {
+                sendToUi("Erro ao buscar: $reason")
+                Handler(Looper.getMainLooper()).postDelayed({
+                    createGroupAndDiscover()
+                }, 2000)
+            }
+        })
+    }
+
+    private fun createGroup(onSuccess: (() -> Unit)? = null) {
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
+        wifiP2pManager?.createGroup(channel, object : WifiP2pManager.ActionListener {
+            override fun onSuccess() {
+                Log.d(TAG, "Grupo criado, agora visível como Servidor.")
+                sendToUi("Visível como Servidor")
+                onSuccess?.invoke()
+            }
+
+            override fun onFailure(reason: Int) {
+                Log.e(TAG, "Falha ao criar grupo: $reason")
             }
         })
     }
 
     private fun connectToDevice(device: WifiP2pDevice) {
-        val config = WifiP2pConfig().apply { deviceAddress = device.deviceAddress }
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            sendToUi("Permissão negada para conectar")
+        if (isConnected) {
+            Log.d(TAG, "Já conectado, ignorando nova tentativa de conexão.")
             return
         }
-        channel?.also { ch ->
-            wifiP2pManager?.connect(ch, config, object : WifiP2pManager.ActionListener {
+
+        val config = WifiP2pConfig().apply {
+            deviceAddress = device.deviceAddress
+            groupOwnerIntent = 0
+        }
+
+        removeCurrentGroup {
+            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return@removeCurrentGroup
+
+            wifiP2pManager?.connect(channel, config, object : WifiP2pManager.ActionListener {
                 override fun onSuccess() {
                     sendToUi("Convite enviado para ${device.deviceName}")
                 }
+
                 override fun onFailure(reason: Int) {
                     sendToUi("Falha ao conectar: $reason")
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        createGroupAndDiscover()
+                    }, 2000)
                 }
             })
         }
     }
 
-    fun stop() {
-        if (channel != null) {
-            try {
-                context.unregisterReceiver(receiver)
-            } catch (e: IllegalArgumentException) {
-                Log.w(TAG, "Receiver não estava registrado.", e)
+    private fun removeCurrentGroup(onRemoved: (() -> Unit)? = null) {
+        wifiP2pManager?.requestGroupInfo(channel) { group ->
+            if (group != null) {
+                wifiP2pManager?.removeGroup(channel, object : WifiP2pManager.ActionListener {
+                    override fun onSuccess() { onRemoved?.invoke() }
+                    override fun onFailure(reason: Int) { onRemoved?.invoke() }
+                })
+            } else {
+                onRemoved?.invoke()
             }
-            channel = null
-            isConnected = false
-            sendToUi("Parado")
         }
     }
 
@@ -165,23 +214,38 @@ class WiFiDirectModule(
 
     inner class WiFiDirectBroadcastReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            when (intent.action) {
-                WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION -> {
-                    if (intent.getIntExtra(WifiP2pManager.EXTRA_WIFI_STATE, -1) != WifiP2pManager.WIFI_P2P_STATE_ENABLED) {
-                        sendToUi("Rádio Desabilitado")
-                        channel = null
-                        isConnected = false
+            when (val action = intent.action) {
+                WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION -> {
+                    val networkInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO, android.net.NetworkInfo::class.java)
                     } else {
-                        sendToUi("Rádio Habilitado")
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(WifiP2pManager.EXTRA_NETWORK_INFO)
+                    }
+                    if (networkInfo?.isConnected == true) {
+                        if (!isConnected) {
+                            isConnected = true
+                            wifiP2pManager?.requestConnectionInfo(channel, connectionInfoListener)
+                        }
+                    } else {
+                        if (isConnected) {
+                            isConnected = false
+                            sendToUi("Desconectado.")
+                            createGroupAndDiscover()
+                        }
                     }
                 }
                 WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION -> {
                     if (channel != null) wifiP2pManager?.requestPeers(channel, peerListListener)
                 }
-                WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION -> {
-                    if (wifiP2pManager == null) return
-                    isConnected = true
-                    wifiP2pManager?.requestConnectionInfo(channel, connectionInfoListener)
+                WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION -> {
+                    val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_DEVICE, WifiP2pDevice::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(WifiP2pManager.EXTRA_WIFI_P2P_DEVICE)
+                    }
+                    device?.let { myDeviceAddress = it.deviceAddress }
                 }
             }
         }
@@ -191,19 +255,19 @@ class WiFiDirectModule(
         override fun doInBackground(vararg params: Void?): NodeCPA? {
             try {
                 ServerSocket(8888).use { serverSocket ->
-                    Log.d(TAG, "Servidor: Socket aberto, aguardando cliente...")
                     val client = serverSocket.accept()
-                    Log.d(TAG, "Servidor: Cliente conectado!")
-                    val clientCPA = ObjectInputStream(client.getInputStream()).readObject() as NodeCPA
-                    ObjectOutputStream(client.getOutputStream()).writeObject(identityModule.getCurrentCPA())
+                    val input = ObjectInputStream(client.getInputStream())
+                    val clientCPA = input.readObject() as? NodeCPA
+                    val output = ObjectOutputStream(client.getOutputStream())
+                    output.writeObject(identityModule.getCurrentCPA())
+                    output.flush()
                     return clientCPA
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Erro no servidor: ${e.message}")
+                Log.e(TAG, "Erro no servidor: ${e.message}", e)
                 return null
             }
         }
-
         override fun onPostExecute(result: NodeCPA?) {
             result?.let {
                 uiHandler.obtainMessage(MainActivity.PARTNER_CPA_UPDATE, it).sendToTarget()
@@ -211,28 +275,35 @@ class WiFiDirectModule(
         }
     }
 
-    inner class ClientTask(private val hostAddress: String) : AsyncTask<NodeCPA, Void, NodeCPA>() {
-        override fun doInBackground(vararg params: NodeCPA): NodeCPA? {
+    inner class ClientTask(private val hostAddress: String?) : AsyncTask<NodeCPA, Void, NodeCPA>() {
+        override fun doInBackground(vararg params: NodeCPA?): NodeCPA? {
+            if (hostAddress == null || params.isEmpty() || params[0] == null) return null
+            try {
+                Thread.sleep(1000)
+            } catch (e: InterruptedException) {
+                Log.e(TAG, "Atraso do ClientTask interrompido.", e)
+                return null
+            }
             val socket = Socket()
             try {
-                Log.d(TAG, "Cliente: Conectando a $hostAddress")
                 socket.bind(null)
                 socket.connect(InetSocketAddress(hostAddress, 8888), 5000)
-                Log.d(TAG, "Cliente: Conectado.")
-                ObjectOutputStream(socket.getOutputStream()).writeObject(params[0])
-                return ObjectInputStream(socket.getInputStream()).readObject() as NodeCPA
+                val output = ObjectOutputStream(socket.getOutputStream())
+                output.writeObject(params[0])
+                output.flush()
+                val input = ObjectInputStream(socket.getInputStream())
+                return input.readObject() as? NodeCPA
             } catch (e: Exception) {
-                Log.e(TAG, "Erro no cliente: ${e.message}")
+                Log.e(TAG, "Erro no cliente: ${e.message}", e)
                 return null
             } finally {
-                socket.takeIf { it.isConnected }?.close()
+                if (socket.isConnected) socket.close()
             }
         }
-
         override fun onPostExecute(result: NodeCPA?) {
             result?.let {
                 uiHandler.obtainMessage(MainActivity.PARTNER_CPA_UPDATE, it).sendToTarget()
-            }
+            } ?: sendToUi("Falha na sincronização")
         }
     }
 }
