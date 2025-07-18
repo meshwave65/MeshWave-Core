@@ -1,58 +1,46 @@
+// Local: app/src/main/java/com/meshwave/core/IdentityModule.kt
 package com.meshwave.core
 
 import android.content.Context
 import android.os.Handler
+import android.os.Message
 import android.util.Log
-import java.util.UUID
-import kotlin.random.Random
 
 class IdentityModule(private val context: Context, private val uiHandler: Handler) {
 
-    private val TAG = "IdentityModule"
+    private val identityManager = IdentityManager(context)
     private var nodeCPA: NodeCPA? = null
 
     fun start() {
-        Log.d(TAG, "Iniciando módulo de identidade...")
-        // A geração do CPA agora depende do Geohash, então esperamos por ele.
-        sendToLog("[Id] Aguardando Geohash da Área para gerar CPA...")
-    }
-
-    fun generateCpa(areaGeohash: String) {
+        nodeCPA = identityManager.loadNodeCPA()
         if (nodeCPA != null) {
-            Log.d(TAG, "CPA já gerado. Ignorando.")
-            return
-        }
-
-        Log.d(TAG, "Geohash da Área recebido: $areaGeohash. Gerando CPA...")
-
-        val did = "did:mesh:${UUID.randomUUID()}"
-        sendToLog("[Id] DID gerado.")
-
-        val username = "User-${Random.nextInt(100, 999)}"
-        sendToLog("[Id] Username gerado: $username")
-
-        nodeCPA = NodeCPA(
-            did = did,
-            username = username,
-            cpaGeohash = areaGeohash,
-            creationTimestamp = System.currentTimeMillis(),
-            currentClaGeohash = areaGeohash, // No nascimento, a CLA atual é a CPA de origem
-            status = "1" // 1 = Ativo
-        )
-
-        sendToLog("[Id] CPA montado com sucesso.")
-        sendCpaUpdate()
-    }
-
-    private fun sendCpaUpdate() {
-        nodeCPA?.let {
-            val msg = uiHandler.obtainMessage(MainActivity.IDENTITY_UPDATE, it)
-            uiHandler.sendMessage(msg)
+            Log.d("IdentityModule", "Identidade carregada do armazenamento local: ${nodeCPA?.username}")
+            sendCpaToUi(nodeCPA!!)
+        } else {
+            Log.d("IdentityModule", "Nenhuma identidade local encontrada. Aguardando geohash para criar uma nova.")
         }
     }
 
-    private fun sendToLog(message: String) {
-        val msg = uiHandler.obtainMessage(MainActivity.LOG_UPDATE, message)
-        uiHandler.sendMessage(msg)
+    fun generateCpaIfNeeded(areaGeohash: String) {
+        if (nodeCPA == null) {
+            Log.d("IdentityModule", "Criando nova identidade com geohash de ativação: $areaGeohash")
+            nodeCPA = identityManager.createNewIdentity(areaGeohash)
+            sendCpaToUi(nodeCPA!!)
+        } else {
+            if (nodeCPA?.currentClaGeohash != areaGeohash) {
+                Log.d("IdentityModule", "Identidade já existe. Atualizando CLA para: $areaGeohash")
+                nodeCPA = nodeCPA!!.copy(currentClaGeohash = areaGeohash)
+                sendCpaToUi(nodeCPA!!)
+            }
+        }
+    }
+
+    fun getCurrentCPA(): NodeCPA? {
+        return nodeCPA
+    }
+
+    private fun sendCpaToUi(cpa: NodeCPA) {
+        val message = Message.obtain(uiHandler, MainActivity.IDENTITY_UPDATE, cpa)
+        uiHandler.sendMessage(message)
     }
 }

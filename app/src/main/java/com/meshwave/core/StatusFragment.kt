@@ -1,3 +1,4 @@
+// Local: app/src/main/java/com/meshwave/core/StatusFragment.kt
 package com.meshwave.core
 
 import android.os.Bundle
@@ -5,84 +6,61 @@ import android.text.method.ScrollingMovementMethod
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ScrollView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 
 class StatusFragment : Fragment() {
 
-    // Declaração das Views que vamos controlar.
-    private lateinit var textViewCpaOrigin: TextView
-    private lateinit var textViewUsername: TextView
-    private lateinit var textViewNodeGeohash: TextView
-    private lateinit var textViewWifiStatus: TextView
-    private lateinit var textViewLocalCache: TextView
-    private lateinit var textViewRemoteCache: TextView
-    private lateinit var textViewLog: TextView
-    private lateinit var logScrollView: ScrollView
+    private lateinit var textCpaOrigin: TextView
+    private lateinit var textUsername: TextView
+    private lateinit var textCurrentLocation: TextView
+    private lateinit var textWifiStatus: TextView
+    private lateinit var textMyCache: TextView
+    private lateinit var textPartnerCache: TextView
+    private lateinit var textLog: TextView
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        // Infla (cria) a view a partir do nosso arquivo de layout XML.
         val view = inflater.inflate(R.layout.fragment_status, container, false)
 
-        // Conecta cada variável de View ao seu componente correspondente no layout.
-        textViewCpaOrigin = view.findViewById(R.id.textViewCpaOrigin)
-        textViewUsername = view.findViewById(R.id.textViewUsername)
-        textViewNodeGeohash = view.findViewById(R.id.textViewNodeGeohash)
-        textViewWifiStatus = view.findViewById(R.id.textViewWifiStatus)
-        textViewLocalCache = view.findViewById(R.id.textViewLocalCache)
-        textViewRemoteCache = view.findViewById(R.id.textViewRemoteCache)
-        textViewLog = view.findViewById(R.id.textViewLog)
-        logScrollView = view.findViewById(R.id.logScrollView)
+        // Inicializa todas as Views
+        textCpaOrigin = view.findViewById(R.id.text_cpa_origin)
+        textUsername = view.findViewById(R.id.text_username)
+        textCurrentLocation = view.findViewById(R.id.text_current_location)
+        textWifiStatus = view.findViewById(R.id.text_wifi_status)
+        textMyCache = view.findViewById(R.id.text_my_cache)
+        textPartnerCache = view.findViewById(R.id.text_partner_cache)
+        textLog = view.findViewById(R.id.text_log)
 
-        // Permite que o TextView de log seja rolável
-        textViewLog.movementMethod = ScrollingMovementMethod()
+        // Permite que o log seja rolável
+        textLog.movementMethod = ScrollingMovementMethod()
 
         return view
     }
 
-    // --- Métodos Públicos para a MainActivity usar ---
+    // --- MÉTODOS CHAMADOS PELA MAINACTIVITY ---
 
-    /**
-     * ✅ MÉTODO ADICIONADO: Atualiza a UI com os dados do CPA.
-     */
-    fun updateCpaData(cpa: NodeCPA) {
-        if (!isAdded) return // Garante que o fragmento está anexado
-        textViewCpaOrigin.text = "CPA de Origem: ${cpa.cpaGeohash}"
-        textViewUsername.text = "Username: ${cpa.username}"
-        // Formata o objeto CPA para exibição no cache local
-        val cpaText = "NodeCPA(\n" +
-                "  did=${cpa.did},\n" +
-                "  username=${cpa.username},\n" +
-                "  cpaGeohash=${cpa.cpaGeohash},\n" +
-                "  creationTimestamp=${cpa.creationTimestamp},\n" +
-                "  currentClaGeohash=${cpa.currentClaGeohash},\n" +
-                "  status=${cpa.status}\n" +
-                ")"
-        textViewLocalCache.text = cpaText
+    fun updateNodeGeohash(geohash: String) {
+        textCurrentLocation.text = "Localização Atual: $geohash"
     }
 
-    /**
-     * ✅ MÉTODO ADICIONADO: Atualiza a UI com o Geohash do nó.
-     */
-    fun updateNodeGeohash(geohash: String) {
-        if (!isAdded) return
-        textViewNodeGeohash.text = "Localização Atual: $geohash"
+    fun updateCpaData(cpa: NodeCPA) {
+        textCpaOrigin.text = "CPA de Origem: ${cpa.cpaGeohash}"
+        textUsername.text = "Username: ${cpa.username}"
+        textMyCache.text = cpa.toString()
     }
 
     fun updateWifiStatus(status: String) {
-        if (!isAdded) return
-        textViewWifiStatus.text = "Wi-Fi Direct: $status"
+        textWifiStatus.text = "Wi-Fi Direct: $status"
     }
 
-    fun addLog(logMessage: String) {
-        if (!isAdded) return
-        // Adiciona a nova mensagem de log com uma quebra de linha.
-        textViewLog.append("\n$logMessage")
-        // Força o ScrollView a rolar para a parte inferior para mostrar a última mensagem.
-        logScrollView.post { logScrollView.fullScroll(View.FOCUS_DOWN) }
+    fun updatePartnerCpa(cpa: NodeCPA) {
+        textPartnerCache.text = cpa.toString()
+    }
+
+    fun addLog(message: String) {
+        textLog.append("\n$message")
     }
 }

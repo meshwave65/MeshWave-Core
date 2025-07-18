@@ -1,99 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:padding="16dp"
     tools:context=".StatusFragment">
 
-    <!-- ✅ IDs CORRIGIDOS -->
-    <TextView
-        android:id="@+id/textViewCpaOrigin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="CPA de Origem: N/A"
-        android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
-
-    <TextView
-        android:id="@+id/textViewUsername"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="Username: N/A"
-        android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
-
-    <TextView
-        android:id="@+id/textViewNodeGeohash"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="Localização Atual: N/A"
-        android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
-
-    <TextView
-        android:id="@+id/textViewWifiStatus"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Wi-Fi Direct: N/A"
-        android:textAppearance="@style/TextAppearance.AppCompat.Medium"
-        android:textStyle="bold" />
-
-    <!-- Seção de Caches -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="Meu Cache (CPA ):"
-        android:textStyle="bold"/>
-    <TextView
-        android:id="@+id/textViewLocalCache"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="{vazio}"
-        android:background="#E0E0E0"
-        android:padding="4dp"
-        android:minLines="2"/>
+        android:orientation="vertical">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Cache do Parceiro:"
-        android:textStyle="bold"/>
-    <TextView
-        android:id="@+id/textViewRemoteCache"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="{desconectado}"
-        android:background="#E0E0E0"
-        android:padding="4dp"
-        android:minLines="2"/>
+        <!-- Seção de Status Geral -->
+        <TextView style="@style/TextAppearance.AppCompat.Title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Status Geral"/>
+        <TextView android:id="@+id/text_cpa_origin" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="CPA de Origem: Aguardando..."/>
+        <TextView android:id="@+id/text_username" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Username: Aguardando..."/>
+        <TextView android:id="@+id/text_current_location" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Localização Atual: Aguardando..."/>
+        <TextView android:id="@+id/text_wifi_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Wi-Fi Direct: Aguardando..."/>
 
-    <!-- Console de Log -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="Log de Eventos:"
-        android:textStyle="bold"/>
+        <!-- Seção Meu Cache -->
+        <TextView style="@style/TextAppearance.AppCompat.Title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="Meu Cache (CPA )"/>
+        <TextView android:id="@+id/text_my_cache" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="#EEEEEE" android:padding="8dp" android:text="{vazio}" android:typeface="monospace"/>
 
-    <ScrollView
-        android:id="@+id/logScrollView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:background="#333333"
-        android:padding="4dp">
+        <!-- Seção Cache do Parceiro -->
+        <TextView style="@style/TextAppearance.AppCompat.Title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="Cache do Parceiro"/>
+        <TextView android:id="@+id/text_partner_cache" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="#EEEEEE" android:padding="8dp" android:text="{desconectado}" android:typeface="monospace"/>
 
-        <TextView
-            android:id="@+id/textViewLog"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#FFFFFF"
-            android:fontFamily="monospace"
-            android:text="Iniciando..." />
-    </ScrollView>
+        <!-- Seção Log de Eventos -->
+        <TextView style="@style/TextAppearance.AppCompat.Title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="Log de Eventos"/>
+        <TextView android:id="@+id/text_log" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="#333333" android:textColor="#FFFFFF" android:padding="8dp" android:maxLines="15" android:scrollbars="vertical" android:text="Iniciando..." android:typeface="monospace"/>
 
-</LinearLayout>
+    </LinearLayout>
+</ScrollView>
