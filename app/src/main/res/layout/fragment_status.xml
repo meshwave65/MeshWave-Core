@@ -1,20 +1,18 @@
-<!-- app/src/main/res/layout/fragment_status.xml -->
-<!-- VERSÃO CORRIGIDA - Usando estilo direto -->
-
+<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp"
-    tools:context=".ui.status.StatusFragment">
+    tools:context=".StatusFragment">
 
-    <!-- Seção de Status Fixo -->
+    <!-- ✅ IDs CORRIGIDOS -->
     <TextView
-        android:id="@+id/textViewDid"
+        android:id="@+id/textViewCpaOrigin"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="DID: N/A"
+        android:text="CPA de Origem: N/A"
         android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
 
     <TextView
@@ -26,11 +24,11 @@
         android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
 
     <TextView
-        android:id="@+id/textViewGeohash"
+        android:id="@+id/textViewNodeGeohash"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="Geohash: N/A"
+        android:text="Localização Atual: N/A"
         android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
 
     <TextView
