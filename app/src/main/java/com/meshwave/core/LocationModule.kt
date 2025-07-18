@@ -1,80 +1,103 @@
-// Local: app/src/main/java/com/meshwave/core/LocationModule.kt
 package com.meshwave.core
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import ch.hsr.geohash.GeoHash
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import java.util.Timer
+import java.util.TimerTask
 
-class LocationModule(private val context: Context, private val uiHandler: Handler) {
-
+@SuppressLint("MissingPermission")
+class LocationModule(
+    private val context: Context,
+    private val uiHandler: Handler,
+    private val identityModule: IdentityModule
+) {
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private val TAG = "LocationModule"
-    private val locationHandler = Handler(Looper.getMainLooper())
-    private var isRunning = false
+    private var locationTimer: Timer? = null
+    private var lastKnownGoodGeohash: String? = null
 
     companion object {
-        private const val UPDATE_INTERVAL_MS = 30000L // Atualiza a cada 30 segundos
-    }
-
-    private val locationRunnable = object : Runnable {
-        override fun run() {
-            if (isRunning) {
-                requestLocation()
-                locationHandler.postDelayed(this, UPDATE_INTERVAL_MS)
-            }
-        }
+        private const val TAG = "LocationModule"
+        private const val LOCATION_UPDATE_INTERVAL_MS = 15000L
+        const val GEOHASH_FAIL_NODE = "g9failxxx"
+        const val GEOHASH_FAIL_AREA = "g6fail"
     }
 
     fun start() {
-        if (isRunning) return
-        Log.d(TAG, "Iniciando ciclo de atualização de localização...")
+        logToUi("[Loc] Módulo iniciando...")
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-        isRunning = true
-        locationHandler.post(locationRunnable) // Inicia o ciclo imediatamente
+        startLocationUpdates()
     }
 
     fun stop() {
-        if (!isRunning) return
-        Log.d(TAG, "Parando ciclo de atualização de localização.")
-        isRunning = false
-        locationHandler.removeCallbacks(locationRunnable)
+        logToUi("[Loc] Módulo parando...")
+        locationTimer?.cancel()
+        locationTimer = null
+    }
+
+    private fun startLocationUpdates() {
+        if (locationTimer != null) return
+        locationTimer = Timer()
+        locationTimer?.scheduleAtFixedRate(object : TimerTask() {
+            override fun run() {
+                requestLocation()
+            }
+        }, 0, LOCATION_UPDATE_INTERVAL_MS)
     }
 
     private fun requestLocation() {
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            sendToUi(MainActivity.LOG_UPDATE, "[Loc] Falha: Permissão negada.")
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            handleLocationError("Permissão negada.")
             return
         }
 
-        sendToUi(MainActivity.LOG_UPDATE, "[Loc] Solicitando localização...")
+        logToUi("[Loc] Solicitando localização...")
         fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
             .addOnSuccessListener { location ->
                 if (location != null) {
                     val nodeGeohash = GeoHash.withCharacterPrecision(location.latitude, location.longitude, 9).toBase32()
                     val areaGeohash = GeoHash.withCharacterPrecision(location.latitude, location.longitude, 6).toBase32()
-                    sendToUi(MainActivity.LOG_UPDATE, "[Loc] Sucesso: Localização obtida.")
-                    sendToUi(MainActivity.LOCATION_UPDATE, LocationData(nodeGeohash, areaGeohash))
+                    logToUi("[Loc] Sucesso: $nodeGeohash")
+
+                    sendToUi(AppConstants.LOCATION_UPDATE, LocationData(nodeGeohash, LocationStatus.UPDATED))
+                    lastKnownGoodGeohash = nodeGeohash
+
+                    identityModule.updateCurrentLocation(nodeGeohash)
+                    identityModule.updateCpaIfNeeded(areaGeohash)
                 } else {
-                    Log.e(TAG, "Falha ao obter localização: objeto location é nulo.")
-                    sendToUi(MainActivity.LOG_UPDATE, "[Loc] Falha: Localização nula.")
+                    handleLocationError("Localização nula.")
                 }
             }
             .addOnFailureListener { e ->
-                Log.e(TAG, "Erro na API de localização: ", e)
-                sendToUi(MainActivity.LOG_UPDATE, "[Loc] Falha: API error - ${e.message}")
+                handleLocationError("API error - ${e.message}")
             }
+    }
+
+    private fun handleLocationError(reason: String) {
+        logToUi("[Loc] Falha: $reason")
+        if (lastKnownGoodGeohash != null) {
+            sendToUi(AppConstants.LOCATION_UPDATE, LocationData(lastKnownGoodGeohash!!, LocationStatus.STALE))
+        } else {
+            sendToUi(AppConstants.LOCATION_UPDATE, LocationData(GEOHASH_FAIL_NODE, LocationStatus.FAILED))
+        }
     }
 
     private fun sendToUi(what: Int, data: Any) {
         val msg = uiHandler.obtainMessage(what, data)
         uiHandler.sendMessage(msg)
+    }
+
+    private fun logToUi(logMessage: String) {
+        Log.d(TAG, logMessage)
+        sendToUi(AppConstants.LOG_UPDATE, logMessage)
     }
 }

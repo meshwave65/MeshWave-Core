@@ -1,4 +1,3 @@
-// Local: app/src/main/java/com/meshwave/core/IdentityManager.kt
 package com.meshwave.core
 
 import android.content.Context
@@ -18,15 +17,15 @@ class IdentityManager(context: Context) {
 
     fun loadNodeCPA(): NodeCPA? {
         if (!prefs.contains(KEY_DID)) {
-            return null // Nenhuma identidade salva
+            return null
         }
         return NodeCPA(
             did = prefs.getString(KEY_DID, "")!!,
             username = prefs.getString(KEY_USERNAME, "")!!,
             cpaGeohash = prefs.getString(KEY_CPA_GEOHASH, "")!!,
             creationTimestamp = prefs.getLong(KEY_CREATION_TIMESTAMP, 0L),
-            currentClaGeohash = "", // Será preenchido pela localização atual
-            status = 1 // Sempre inicia como ativo
+            currentClaGeohash = "",
+            status = 1
         )
     }
 
