@@ -1,4 +1,3 @@
-// Local: app/src/main/java/com/meshwave/core/IdentityModule.kt
 package com.meshwave.core
 
 import android.content.Context
@@ -13,24 +12,23 @@ class IdentityModule(private val context: Context, private val uiHandler: Handle
     fun start() {
         myNodeCPA = identityManager.loadNodeCPA()
         if (myNodeCPA != null) {
-            Log.d("IdentityModule", "Identidade carregada: ${myNodeCPA?.username}")
-            uiHandler.obtainMessage(MainActivity.LOG_UPDATE, "[Main] CPA Pronto.").sendToTarget()
-            uiHandler.obtainMessage(MainActivity.IDENTITY_UPDATE, myNodeCPA).sendToTarget()
+            logToUi("[Id] Identidade carregada: ${myNodeCPA?.username}")
         } else {
-            Log.d("IdentityModule", "Nenhuma identidade local. Aguardando geohash.")
-            uiHandler.obtainMessage(MainActivity.LOG_UPDATE, "[Id] Aguardando Geohash da Área para gerar CPA...").sendToTarget()
+            logToUi("[Id] Nenhuma identidade local. Aguardando geohash.")
+            myNodeCPA = identityManager.createNewIdentity(LocationModule.GEOHASH_FAIL_AREA)
+            logToUi("[Id] Identidade provisória criada: ${myNodeCPA!!.username}")
         }
+        uiHandler.obtainMessage(AppConstants.IDENTITY_UPDATE, myNodeCPA).sendToTarget()
     }
 
-    // MÉTODO CORRIGIDO E PRESENTE
-    fun generateCpaIfNeeded(areaGeohash: String) {
-        if (myNodeCPA == null) {
-            myNodeCPA = identityManager.createNewIdentity(areaGeohash)
-            Log.d("IdentityModule", "Nova identidade criada: ${myNodeCPA!!.username}")
-            uiHandler.obtainMessage(MainActivity.LOG_UPDATE, "[Id] DID gerado.").sendToTarget()
-            uiHandler.obtainMessage(MainActivity.LOG_UPDATE, "[Id] Username gerado: ${myNodeCPA!!.username}").sendToTarget()
-            uiHandler.obtainMessage(MainActivity.LOG_UPDATE, "[Id] CPA montado com sucesso.").sendToTarget()
-            uiHandler.obtainMessage(MainActivity.IDENTITY_UPDATE, myNodeCPA).sendToTarget()
+    fun updateCpaIfNeeded(areaGeohash: String) {
+        myNodeCPA?.let {
+            if (it.cpaGeohash == LocationModule.GEOHASH_FAIL_AREA) {
+                logToUi("[Id] CPA de origem atualizado para: $areaGeohash")
+                myNodeCPA = it.copy(cpaGeohash = areaGeohash)
+                identityManager.saveNodeCPA(myNodeCPA!!)
+                uiHandler.obtainMessage(AppConstants.IDENTITY_UPDATE, myNodeCPA).sendToTarget()
+            }
         }
     }
 
@@ -42,8 +40,13 @@ class IdentityModule(private val context: Context, private val uiHandler: Handle
         myNodeCPA?.let {
             if (it.currentClaGeohash != newGeohash) {
                 myNodeCPA = it.copy(currentClaGeohash = newGeohash)
-                // Opcional: notificar a UI sobre a mudança de CLA se necessário no futuro
+                uiHandler.obtainMessage(AppConstants.IDENTITY_UPDATE, myNodeCPA).sendToTarget()
             }
         }
+    }
+
+    private fun logToUi(logMessage: String) {
+        Log.d("IdentityModule", logMessage)
+        uiHandler.obtainMessage(AppConstants.LOG_UPDATE, logMessage).sendToTarget()
     }
 }
