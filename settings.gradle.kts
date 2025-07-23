@@ -1,12 +1,8 @@
+// settings.gradle.kts
+
 pluginManagement {
     repositories {
-        google {
-            content {
-                includeGroupByRegex("com\\.android.*")
-                includeGroupByRegex("com\\.google.*")
-                includeGroupByRegex("androidx.*")
-            }
-        }
+        google()
         mavenCentral()
         gradlePluginPortal()
     }
@@ -16,9 +12,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // ESTA É A LINHA ESSENCIAL QUE FALTAVA
+        // Adiciona o repositório JitPack para que o Gradle possa encontrar a biblioteca Geohash
+        maven { url = uri("https://jitpack.io" ) }
     }
 }
 
 rootProject.name = "MeshWave-Core"
 include(":app")
- 

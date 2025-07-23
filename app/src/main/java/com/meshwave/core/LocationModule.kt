@@ -1,103 +1,73 @@
 package com.meshwave.core
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Handler
 import android.os.Looper
-import android.util.Log
-import androidx.core.content.ContextCompat
-import ch.hsr.geohash.GeoHash
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
-import java.util.Timer
-import java.util.TimerTask
+import androidx.core.app.ActivityCompat
+import ch.hsr.geohash.GeoHash // Importa a biblioteca correta
+import com.google.android.gms.location.*
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import java.util.concurrent.TimeUnit
 
-@SuppressLint("MissingPermission")
-class LocationModule(
-    private val context: Context,
-    private val uiHandler: Handler,
-    private val identityModule: IdentityModule
-) {
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private var locationTimer: Timer? = null
-    private var lastKnownGoodGeohash: String? = null
-
-    companion object {
-        private const val TAG = "LocationModule"
-        private const val LOCATION_UPDATE_INTERVAL_MS = 15000L
-        const val GEOHASH_FAIL_NODE = "g9failxxx"
-        const val GEOHASH_FAIL_AREA = "g6fail"
+class LocationModule(private val context: Context) {
+    private val fusedLocationClient: FusedLocationProviderClient by lazy {
+        LocationServices.getFusedLocationProviderClient(context)
     }
 
-    fun start() {
-        logToUi("[Loc] Módulo iniciando...")
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-        startLocationUpdates()
-    }
-
-    fun stop() {
-        logToUi("[Loc] Módulo parando...")
-        locationTimer?.cancel()
-        locationTimer = null
-    }
-
-    private fun startLocationUpdates() {
-        if (locationTimer != null) return
-        locationTimer = Timer()
-        locationTimer?.scheduleAtFixedRate(object : TimerTask() {
-            override fun run() {
-                requestLocation()
-            }
-        }, 0, LOCATION_UPDATE_INTERVAL_MS)
-    }
-
-    private fun requestLocation() {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            handleLocationError("Permissão negada.")
-            return
+    @Throws(SecurityException::class)
+    fun fetchLocationUpdates(): Flow<LocationData> = callbackFlow {
+        // Verifica se o app tem permissão para acessar a localização precisa.
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // Se não tiver, fecha o fluxo com um erro. O ViewModel que chama esta função
+            // deve tratar essa exceção (por exemplo, mostrando uma mensagem ao usuário).
+            close(SecurityException("Permissão de localização não concedida."))
+            return@callbackFlow
         }
 
-        logToUi("[Loc] Solicitando localização...")
-        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
-            .addOnSuccessListener { location ->
-                if (location != null) {
-                    val nodeGeohash = GeoHash.withCharacterPrecision(location.latitude, location.longitude, 9).toBase32()
-                    val areaGeohash = GeoHash.withCharacterPrecision(location.latitude, location.longitude, 6).toBase32()
-                    logToUi("[Loc] Sucesso: $nodeGeohash")
+        // Configura o pedido de localização: alta precisão, com intervalo de 10 segundos.
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, TimeUnit.SECONDS.toMillis(10)).build()
 
-                    sendToUi(AppConstants.LOCATION_UPDATE, LocationData(nodeGeohash, LocationStatus.UPDATED))
-                    lastKnownGoodGeohash = nodeGeohash
+        // Cria o "ouvinte" que receberá as atualizações de localização do sistema.
+        val locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                // Pega a última localização recebida do GPS.
+                locationResult.lastLocation?.let { location ->
 
-                    identityModule.updateCurrentLocation(nodeGeohash)
-                    identityModule.updateCpaIfNeeded(areaGeohash)
-                } else {
-                    handleLocationError("Localização nula.")
+                    // ================================================================
+                    //      SEU TRECHO DE CÓDIGO É INSERIDO EXATAMENTE AQUI
+                    // ================================================================
+                    val lat = location.latitude
+                    val lon = location.longitude
+
+                    // Para o CLA (nível 6)
+                    val claGeohash = GeoHash.withCharacterPrecision(lat, lon, 6).toBase32()
+
+                    // Para o Geohash preciso (nível 9)
+                    val preciseGeohash = GeoHash.withCharacterPrecision(lat, lon, 9).toBase32()
+                    // ================================================================
+
+                    // Cria o objeto LocationData com os geohashes calculados.
+                    val locationData = LocationData(
+                        claGeohash = claGeohash,
+                        preciseGeohash = preciseGeohash
+                    )
+
+                    // Envia o objeto LocationData para quem estiver "escutando" este fluxo.
+                    trySend(locationData)
                 }
             }
-            .addOnFailureListener { e ->
-                handleLocationError("API error - ${e.message}")
-            }
-    }
-
-    private fun handleLocationError(reason: String) {
-        logToUi("[Loc] Falha: $reason")
-        if (lastKnownGoodGeohash != null) {
-            sendToUi(AppConstants.LOCATION_UPDATE, LocationData(lastKnownGoodGeohash!!, LocationStatus.STALE))
-        } else {
-            sendToUi(AppConstants.LOCATION_UPDATE, LocationData(GEOHASH_FAIL_NODE, LocationStatus.FAILED))
         }
-    }
 
-    private fun sendToUi(what: Int, data: Any) {
-        val msg = uiHandler.obtainMessage(what, data)
-        uiHandler.sendMessage(msg)
-    }
+        // Registra o nosso "ouvinte" para começar a receber as atualizações.
+        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
 
-    private fun logToUi(logMessage: String) {
-        Log.d(TAG, logMessage)
-        sendToUi(AppConstants.LOG_UPDATE, logMessage)
+        // Este bloco é executado quando o fluxo é cancelado (ex: o app fecha).
+        // Ele garante que o GPS seja desligado para economizar bateria.
+        awaitClose {
+            fusedLocationClient.removeLocationUpdates(locationCallback)
+        }
     }
 }

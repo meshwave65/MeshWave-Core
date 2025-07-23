@@ -1,7 +1,11 @@
 package com.meshwave.core
 
-enum class LocationStatus {
-    UPDATED, STALE, FAILED
-}
+import java.io.Serializable
 
-data class LocationData(val geohash: String, val status: LocationStatus)
+/**
+ * Define o pacote de dados que o LocationModule envia.
+ */
+data class LocationData(
+    val claGeohash: String,
+    val preciseGeohash: String
+) : Serializable

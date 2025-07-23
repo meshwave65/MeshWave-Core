@@ -1,52 +1,49 @@
 package com.meshwave.core
 
-import android.content.Context
-import android.os.Handler
-import android.util.Log
+import java.util.UUID
 
-class IdentityModule(private val context: Context, private val uiHandler: Handler) {
+/**
+ * Módulo singleton para gerenciar a identidade do nó (NodeCPA).
+ */
+object IdentityModule {
+    private var currentNodeCPA: NodeCPA? = null
 
-    private val identityManager = IdentityManager(context)
-    private var myNodeCPA: NodeCPA? = null
-
-    fun start() {
-        myNodeCPA = identityManager.loadNodeCPA()
-        if (myNodeCPA != null) {
-            logToUi("[Id] Identidade carregada: ${myNodeCPA?.username}")
-        } else {
-            logToUi("[Id] Nenhuma identidade local. Aguardando geohash.")
-            myNodeCPA = identityManager.createNewIdentity(LocationModule.GEOHASH_FAIL_AREA)
-            logToUi("[Id] Identidade provisória criada: ${myNodeCPA!!.username}")
+    fun getOrCreateCurrentNodeCPA(): NodeCPA {
+        if (currentNodeCPA == null) {
+            val did = "did:mesh:" + UUID.randomUUID().toString()
+            val username = "User-" + (100..999).random()
+            currentNodeCPA = NodeCPA(
+                did = did,
+                username = username,
+                claGeohash = AppConstants.GEOHASH_FAIL_CLA,
+                preciseGeohash = AppConstants.GEOHASH_FAIL_PRECISE,
+                locationTimestamp = 0L,
+                locationStatus = LocationStatus.FAILED,
+                creationTimestamp = System.currentTimeMillis(),
+                networkStatus = 1
+            )
         }
-        uiHandler.obtainMessage(AppConstants.IDENTITY_UPDATE, myNodeCPA).sendToTarget()
+        return currentNodeCPA!!
     }
 
-    fun updateCpaIfNeeded(areaGeohash: String) {
-        myNodeCPA?.let {
-            if (it.cpaGeohash == LocationModule.GEOHASH_FAIL_AREA) {
-                logToUi("[Id] CPA de origem atualizado para: $areaGeohash")
-                myNodeCPA = it.copy(cpaGeohash = areaGeohash)
-                identityManager.saveNodeCPA(myNodeCPA!!)
-                uiHandler.obtainMessage(AppConstants.IDENTITY_UPDATE, myNodeCPA).sendToTarget()
-            }
-        }
-    }
-
-    fun getCurrentCPA(): NodeCPA? {
-        return myNodeCPA
-    }
-
-    fun updateCurrentLocation(newGeohash: String) {
-        myNodeCPA?.let {
-            if (it.currentClaGeohash != newGeohash) {
-                myNodeCPA = it.copy(currentClaGeohash = newGeohash)
-                uiHandler.obtainMessage(AppConstants.IDENTITY_UPDATE, myNodeCPA).sendToTarget()
-            }
+    fun updateCpaWithLocation(locationData: LocationData) {
+        getOrCreateCurrentNodeCPA().apply {
+            this.claGeohash = locationData.claGeohash
+            this.preciseGeohash = locationData.preciseGeohash
+//            this.locationStatus = determineLocationStatus(locationData.claGeohash)
+            this.locationTimestamp = System.currentTimeMillis()
         }
     }
 
-    private fun logToUi(logMessage: String) {
-        Log.d("IdentityModule", logMessage)
-        uiHandler.obtainMessage(AppConstants.LOG_UPDATE, logMessage).sendToTarget()
+    fun markCpaLocationAsFailed() {
+        getOrCreateCurrentNodeCPA().apply {
+            this.claGeohash = AppConstants.GEOHASH_FAIL_CLA
+            this.preciseGeohash = AppConstants.GEOHASH_FAIL_PRECISE
+            this.locationStatus = LocationStatus.FAILED
+        }
+    }
+
+    fun getCurrentNodeCPA(): NodeCPA? {
+        return currentNodeCPA
     }
 }

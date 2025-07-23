@@ -1,0 +1,135 @@
+package com.meshwave.core
+
+import android.graphics.Color
+import android.os.Bundle
+import android.text.Spannable
+import android.text.SpannableStringBuilder
+import android.text.method.ScrollingMovementMethod
+import android.text.style.ForegroundColorSpan
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
+
+class StatusFragment : Fragment() {
+
+    private lateinit var textUsername: TextView
+    private lateinit var textCpaOrigin: TextView
+    private lateinit var textClaCurrent: TextView
+    private lateinit var textWifiStatus: TextView
+    private lateinit var textSyncedNodes: TextView
+    private lateinit var textDiscoveredPeers: TextView
+    private lateinit var textLog: TextView
+
+    private val logMessages = mutableListOf<String>()
+
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        val view = inflater.inflate(R.layout.fragment_status, container, false)
+
+        textUsername = view.findViewById(R.id.text_username)
+        textCpaOrigin = view.findViewById(R.id.text_cpa_origin)
+        textClaCurrent = view.findViewById(R.id.text_cla_current)
+        textWifiStatus = view.findViewById(R.id.text_wifi_status)
+        textSyncedNodes = view.findViewById(R.id.text_synced_nodes)
+        textDiscoveredPeers = view.findViewById(R.id.text_discovered_peers)
+        textLog = view.findViewById(R.id.text_log)
+
+        textLog.movementMethod = ScrollingMovementMethod()
+        addLog("Interface iniciada. Aguardando dados...")
+
+        return view
+    }
+
+    fun updateLocationView(locationData: LocationData) {
+        if (!isAdded) return
+        textClaCurrent.text = "CLA Atual: ${locationData.geohash}"
+        val color = when (locationData.status) {
+            LocationStatus.UPDATED -> ContextCompat.getColor(requireContext(), android.R.color.holo_green_dark)
+            LocationStatus.STALE -> ContextCompat.getColor(requireContext(), android.R.color.holo_orange_dark)
+            LocationStatus.FAILED -> ContextCompat.getColor(requireContext(), android.R.color.holo_red_dark)
+        }
+        textClaCurrent.setTextColor(color)
+    }
+
+    fun updateCacheView(cache: SituationalCache, identityModule: IdentityModule) {
+        if (!isAdded) return
+
+        val myProfile = identityModule.getMyProfile()
+        if (myProfile != null) {
+            textUsername.text = "Meu Username: ${myProfile.username}"
+            textCpaOrigin.text = "CPA de Origem: ${myProfile.cpaGeohash}"
+        }
+
+        // **LÓGICA DE UI CORRIGIDA**
+
+        // 1. Exibe os Nós Sincronizados (todos os nós no cache, incluindo o próprio)
+        val syncedNodesText = cache.nodes.values.joinToString(", ") { it.username }
+        textSyncedNodes.text = "Nós Sincronizados: [ $syncedNodesText ]"
+
+        // 2. Filtra a lista de pares descobertos para remover aqueles que já estão na lista de sincronizados
+        val syncedDids = cache.nodes.keys
+        val visiblePeers = cache.discoveredPeers.values.filter { peer ->
+            // Um peer é exibido se seu DID (extraído do nome) não estiver na lista de sincronizados
+            val peerDid = peer.deviceName.substringAfter("did:", "").ifEmpty { null }
+            peerDid == null || !syncedDids.contains("did:${peerDid}")
+        }.filter { it.status > 0 }.sortedBy { it.deviceName }
+
+
+        // 3. Renderiza a lista de Pares Descobertos com cores
+        if (visiblePeers.isNotEmpty()) {
+            val builder = SpannableStringBuilder()
+            builder.append("Pares Descobertos: [ ")
+
+            visiblePeers.forEachIndexed { index, peer ->
+                val color = when (peer.status) {
+                    1 -> ContextCompat.getColor(requireContext(), android.R.color.holo_green_dark)
+                    2 -> ContextCompat.getColor(requireContext(), android.R.color.holo_orange_dark)
+                    3 -> ContextCompat.getColor(requireContext(), android.R.color.holo_red_dark)
+                    else -> Color.GRAY
+                }
+                val start = builder.length
+                builder.append(peer.deviceName)
+                val end = builder.length
+                builder.setSpan(ForegroundColorSpan(color), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+
+                if (index < visiblePeers.size - 1) {
+                    builder.append(", ")
+                }
+            }
+            builder.append(" ]")
+
+            textDiscoveredPeers.text = builder
+            textDiscoveredPeers.visibility = View.VISIBLE
+        } else {
+            // Esconde a lista se não houver pares descobertos (ou se todos já foram sincronizados)
+            textDiscoveredPeers.visibility = View.GONE
+        }
+    }
+
+    fun updateWifiStatusView(status: String) {
+        if (isAdded) {
+            textWifiStatus.text = "Wi-Fi Direct: $status"
+        }
+    }
+
+    fun addLog(message: String) {
+        if (!isAdded || !::textLog.isInitialized) return
+        activity?.runOnUiThread {
+            if (logMessages.size > 100) {
+                logMessages.removeAt(0)
+            }
+            logMessages.add(message)
+            textLog.text = logMessages.joinToString("\n")
+            if (textLog.layout != null) {
+                val scrollAmount = textLog.layout.getLineTop(textLog.lineCount) - textLog.height
+                if (scrollAmount > 0) textLog.scrollTo(0, scrollAmount)
+                else textLog.scrollTo(0, 0)
+            }
+        }
+    }
+}

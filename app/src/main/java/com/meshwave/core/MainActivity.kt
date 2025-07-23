@@ -1,179 +1,154 @@
-// Caminho: app/src/main/java/com/meshwave/core/MainActivity.kt
 package com.meshwave.core
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.util.Log
-import android.widget.TextView
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentTransaction
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.viewModels
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.meshwave.core.ui.theme.MeshWaveCoreTheme
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
 
-class MainActivity : AppCompatActivity(), StatusFragment.ManualControlListener {
+class MainActivity : ComponentActivity() {
 
-    private lateinit var locationModule: LocationModule
-    private lateinit var identityModule: IdentityModule
-    private lateinit var wifiDirectModule: WiFiDirectModule
-    private lateinit var statusFragment: StatusFragment
-
-    private val uiHandler = Handler(Looper.getMainLooper()) { msg ->
-        if (!this::statusFragment.isInitialized || !statusFragment.isAdded) {
-            return@Handler false
-        }
-
-        when (msg.what) {
-            AppConstants.LOCATION_UPDATE -> {
-                val locationData = msg.obj as LocationData
-                statusFragment.updateLocation(locationData)
-                true
-            }
-            AppConstants.IDENTITY_UPDATE -> {
-                val cpa = msg.obj as NodeCPA
-                statusFragment.updateCpaData(cpa)
-                true
-            }
-            AppConstants.PARTNER_CPA_UPDATE -> {
-                val partnerCpa = msg.obj as? NodeCPA
-                statusFragment.updatePartnerCpa(partnerCpa)
-                if (partnerCpa != null) {
-                    addLogToFragment("[Main] Cache do parceiro sincronizado!")
-                }
-                true
-            }
-            AppConstants.LOG_UPDATE -> {
-                val logMessage = msg.obj as String
-                addLogToFragment(logMessage)
-                true
-            }
-            AppConstants.WIFI_STATUS_UPDATE -> {
-                val status = msg.obj as String
-                statusFragment.updateWifiStatus(status)
-                true
-            }
-            else -> false
-        }
-    }
+    private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-        setupCustomActionBar()
-
-        if (savedInstanceState == null) {
-            statusFragment = StatusFragment()
-            loadFragment(statusFragment)
-        } else {
-            statusFragment = supportFragmentManager.findFragmentById(R.id.fragment_container) as StatusFragment
+        // Lógica de permissões (deve ser adicionada aqui se ainda não estiver)
+        setContent {
+            MeshWaveCoreTheme {
+                val state by viewModel.uiState.collectAsState()
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    Scaffold(
+                        topBar = { AppTopBar() }
+                    ) { paddingValues ->
+                        MainScreen(
+                            modifier = Modifier.padding(paddingValues),
+                            state = state
+                        )
+                    }
+                }
+            }
         }
     }
+}
 
-    override fun onResume() {
-        super.onResume()
-        checkAndRequestPermissions()
-    }
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppTopBar() {
+    val appVersion = BuildConfig.APP_VERSION_NAME
 
-    override fun onPause() {
-        super.onPause()
-        if (this::wifiDirectModule.isInitialized) {
-            wifiDirectModule.stop()
-        }
-        if (this::locationModule.isInitialized) {
-            locationModule.stop()
-        }
-    }
-
-    private fun checkAndRequestPermissions() {
-        val requiredPermissions = mutableListOf(
-            Manifest.permission.ACCESS_FINE_LOCATION
+    TopAppBar(
+        title = {
+            Text(
+                text = "MeshWave Core",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        actions = {
+            Text(
+                text = "v$appVersion",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Light,
+                modifier = Modifier.padding(end = 16.dp)
+            )
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            titleContentColor = MaterialTheme.colorScheme.onPrimary,
+            actionIconContentColor = MaterialTheme.colorScheme.onPrimary
         )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            requiredPermissions.add(Manifest.permission.NEARBY_WIFI_DEVICES)
+    )
+}
+
+@Composable
+fun MainScreen(
+    modifier: Modifier = Modifier,
+    state: AppUiState
+) {
+    Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
+        // --- PAINEL DE NÓS DA REDE ---
+        Text("NÓS NA REDE (${state.networkNodes.size})", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LazyColumn(modifier = Modifier.heightIn(max = 240.dp)) { // Altura máxima para a lista de nós
+            items(state.networkNodes.values.toList()) { node ->
+                NodeInfoCard(
+                    node = node,
+                    isLocalNode = (node.did == state.localNodeDid)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
         }
 
-        val permissionsToRequest = requiredPermissions.filter {
-            ActivityCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
+        Spacer(modifier = Modifier.height(16.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(16.dp))
 
-        if (permissionsToRequest.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), AppConstants.PERMISSIONS_REQUEST_CODE)
-        } else {
-            initializeModules()
+        // --- LOG DE EVENTOS ---
+        Text("LOG DE EVENTOS", style = MaterialTheme.typography.titleMedium)
+        val scrollState = rememberLazyListState()
+        LaunchedEffect(state.logMessages.size) {
+            scrollState.animateScrollToItem(state.logMessages.size)
         }
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == AppConstants.PERMISSIONS_REQUEST_CODE) {
-            if (grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                initializeModules()
-            } else {
-                addLogToFragment("[Main] Permissões negadas. Funcionalidade limitada.")
+        LazyColumn(
+            state = scrollState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f) // Ocupa o resto do espaço
+                .background(Color.Black)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            items(state.logMessages) { msg ->
+                Text(
+                    text = msg,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace
+                )
             }
         }
     }
+}
 
-    private fun initializeModules() {
-        if (this::locationModule.isInitialized) {
-            locationModule.start()
-            wifiDirectModule.start()
-            return
-        }
-
-        addLogToFragment("[Main] Módulos sendo inicializados...")
-
-        identityModule = IdentityModule(this, uiHandler)
-        locationModule = LocationModule(this, uiHandler, identityModule)
-        wifiDirectModule = WiFiDirectModule(this, uiHandler, identityModule)
-
-        identityModule.start()
-        locationModule.start()
-        wifiDirectModule.start()
-    }
-
-    private fun addLogToFragment(message: String) {
-        if (this::statusFragment.isInitialized && statusFragment.isAdded) {
-            runOnUiThread {
-                statusFragment.addLog(message)
+@Composable
+fun NodeInfoCard(node: NodeCPA, isLocalNode: Boolean) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        border = if (isLocalNode) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = "${node.username} (${if (isLocalNode) "Este Dispositivo" else "Remoto"})",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Text("ID: ...${node.did.takeLast(8)}", fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            Text("Status Localização: ${node.locationStatus.name}", color = node.locationStatus.toColor())
+            Text("Geohash (CLA): ${node.claGeohash}")
+            val timestamp = try {
+                SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(node.locationTimestamp))
+            } catch (e: Exception) {
+                "N/A"
             }
-        }
-    }
-
-    private fun setupCustomActionBar() {
-        supportActionBar?.apply {
-            setDisplayOptions(androidx.appcompat.app.ActionBar.DISPLAY_SHOW_CUSTOM)
-            setCustomView(R.layout.action_bar_custom)
-            val versionTextView = customView?.findViewById<TextView>(R.id.textViewVersion)
-            try {
-                val pInfo = packageManager.getPackageInfo(packageName, 0)
-                versionTextView?.text = "v${pInfo.versionName}"
-            } catch (e: PackageManager.NameNotFoundException) {
-                Log.e("MainActivity", "Erro ao obter a versão do app", e)
-            }
-        }
-    }
-
-    private fun loadFragment(fragment: Fragment) {
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, fragment)
-            .commit()
-    }
-
-    // --- MÉTODOS DA INTERFACE ManualControlListener ---
-
-    override fun onBecomeServerClicked() {
-        if (this::wifiDirectModule.isInitialized) {
-            wifiDirectModule.becomeServer()
-        }
-    }
-
-    override fun onBecomeClientClicked() {
-        if (this::wifiDirectModule.isInitialized) {
-            wifiDirectModule.becomeClient()
+            Text("Última Atualização: $timestamp")
         }
     }
 }

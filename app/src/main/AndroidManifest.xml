@@ -2,20 +2,49 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Permissão de Localização (já tínhamos, mas necessária para Wi-Fi Direct em algumas versões ) -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- ===================================================================== -->
+    <!-- PERMISSÕES DE REDE E CONECTIVIDADE                                      -->
+    <!-- ===================================================================== -->
 
-    <!-- Permissões de Wi-Fi Direct (NOVAS) -->
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <!-- Permissões básicas de Internet -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- Permissão para dispositivos próximos (Obrigatória a partir do Android 12 para Wi-Fi Direct) -->
-    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
-        android:usesPermissionFlags="neverForLocation" />
+    <!-- Permissões para Wi-Fi Direct -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
 
+    <!-- Permissões de Localização (ESSENCIAL para Wi-Fi Direct e Bluetooth Scan ) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+
+    <!-- ===================================================================== -->
+    <!-- PERMISSÕES DE BLUETOOTH (NOVA SEÇÃO)                                  -->
+    <!-- ===================================================================== -->
+
+    <!-- Permissões "Legadas" para Bluetooth (Android 11 / API 30 e inferior) -->
+    <!-- maxSdkVersion="30" garante que estas permissões só sejam solicitadas em versões antigas do Android. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+
+    <!--
+      Permissões "Modernas" para Bluetooth (Android 12 / API 31 e superior)
+      Estas são as permissões que serão solicitadas em tempo de execução em dispositivos novos.
+    -->
+    <!-- Necessária para descobrir outros dispositivos Bluetooth. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+
+    <!-- Necessária para se conectar a dispositivos Bluetooth que já foram pareados. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- Necessária para tornar o dispositivo visível (anunciar) para outros dispositivos. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+
+
+    <!-- ===================================================================== -->
+    <!-- CONFIGURAÇÃO DA APLICAÇÃO                                             -->
+    <!-- ===================================================================== -->
 
     <application
         android:allowBackup="true"
@@ -24,12 +53,14 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
+        android.supportsRtl="true"
         android:theme="@style/Theme.MeshWaveCore"
         tools:targetApi="31">
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.MeshWaveCore">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

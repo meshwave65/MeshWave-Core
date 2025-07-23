@@ -1,0 +1,10 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!--
+      Tema base do aplicativo para o modo noturno.
+      O pai "Theme.Material3.DayNight.NoActionBar" já lida com a troca
+      automática para as cores do tema escuro do Material 3.
+    -->
+    <style name="Theme.MeshWaveCore" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Não é necessário customizar aqui para o modo noturno ao usar um tema DayNight. -->
+    </style>
+</resources>
