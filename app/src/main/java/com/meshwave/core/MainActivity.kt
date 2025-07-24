@@ -14,25 +14,39 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.meshwave.core.ui.theme.MeshWaveCoreTheme
-import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.*
 
 class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
+    private lateinit var permissionManager: PermissionManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Lógica de permissões (deve ser adicionada aqui se ainda não estiver)
+        permissionManager = PermissionManager(this)
+
         setContent {
             MeshWaveCoreTheme {
+                // Efeito que roda uma vez para verificar e pedir permissão se necessário.
+                LaunchedEffect(key1 = true) {
+                    if (!permissionManager.hasLocationPermission()) {
+                        viewModel.log("Permissão de localização não encontrada. Solicitando...")
+                        permissionManager.requestLocationPermission { allGranted ->
+                            if (allGranted) {
+                                viewModel.log("Permissão concedida pelo usuário.")
+                            } else {
+                                viewModel.log("Permissão negada pelo usuário.")
+                            }
+                        }
+                    } else {
+                        viewModel.log("Permissão de localização já concedida.")
+                    }
+                }
+
                 val state by viewModel.uiState.collectAsState()
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     Scaffold(
@@ -53,14 +67,8 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppTopBar() {
     val appVersion = BuildConfig.APP_VERSION_NAME
-
     TopAppBar(
-        title = {
-            Text(
-                text = "MeshWave Core",
-                fontWeight = FontWeight.Bold
-            )
-        },
+        title = { Text("MeshWave Core", fontWeight = FontWeight.Bold) },
         actions = {
             Text(
                 text = "v$appVersion",
@@ -78,16 +86,12 @@ fun AppTopBar() {
 }
 
 @Composable
-fun MainScreen(
-    modifier: Modifier = Modifier,
-    state: AppUiState
-) {
+fun MainScreen(modifier: Modifier = Modifier, state: AppUiState) {
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
-        // --- PAINEL DE NÓS DA REDE ---
         Text("NÓS NA REDE (${state.networkNodes.size})", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
 
-        LazyColumn(modifier = Modifier.heightIn(max = 240.dp)) { // Altura máxima para a lista de nós
+        LazyColumn(modifier = Modifier.heightIn(max = 240.dp)) {
             items(state.networkNodes.values.toList()) { node ->
                 NodeInfoCard(
                     node = node,
@@ -101,17 +105,18 @@ fun MainScreen(
         HorizontalDivider()
         Spacer(modifier = Modifier.height(16.dp))
 
-        // --- LOG DE EVENTOS ---
         Text("LOG DE EVENTOS", style = MaterialTheme.typography.titleMedium)
         val scrollState = rememberLazyListState()
         LaunchedEffect(state.logMessages.size) {
-            scrollState.animateScrollToItem(state.logMessages.size)
+            if (state.logMessages.isNotEmpty()) {
+                scrollState.animateScrollToItem(state.logMessages.size - 1)
+            }
         }
         LazyColumn(
             state = scrollState,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f) // Ocupa o resto do espaço
+                .weight(1f)
                 .background(Color.Black)
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
@@ -131,7 +136,8 @@ fun MainScreen(
 fun NodeInfoCard(node: NodeCPA, isLocalNode: Boolean) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        border = if (isLocalNode) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+        border = if (isLocalNode) BorderStroke(2.dp, node.locationStatus.toColor()) else null,
+        colors = CardDefaults.cardColors(containerColor = node.locationStatus.toColor().copy(alpha = 0.1f))
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(
@@ -141,14 +147,7 @@ fun NodeInfoCard(node: NodeCPA, isLocalNode: Boolean) {
             )
             Text("ID: ...${node.did.takeLast(8)}", fontSize = 10.sp, fontFamily = FontFamily.Monospace)
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            Text("Status Localização: ${node.locationStatus.name}", color = node.locationStatus.toColor())
             Text("Geohash (CLA): ${node.claGeohash}")
-            val timestamp = try {
-                SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(node.locationTimestamp))
-            } catch (e: Exception) {
-                "N/A"
-            }
-            Text("Última Atualização: $timestamp")
         }
     }
 }

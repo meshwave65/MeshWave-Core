@@ -1,20 +1,22 @@
-// settings.gradle.kts
-
 pluginManagement {
+    plugins {
+        // Define a versão para AMBOS os plugins do Kotlin.
+        // A versão deve ser a mesma do compilador principal.
+        id("org.jetbrains.kotlin.plugin.serialization") version "2.2.0"
+        id("org.jetbrains.kotlin.plugin.compose") version "2.2.0"
+    }
     repositories {
         google()
         mavenCentral()
         gradlePluginPortal()
     }
 }
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
         mavenCentral()
-        // ESTA É A LINHA ESSENCIAL QUE FALTAVA
-        // Adiciona o repositório JitPack para que o Gradle possa encontrar a biblioteca Geohash
-        maven { url = uri("https://jitpack.io" ) }
     }
 }
 

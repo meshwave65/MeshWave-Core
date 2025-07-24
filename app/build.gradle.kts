@@ -1,6 +1,8 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.serialization")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
@@ -15,17 +17,10 @@ android {
     defaultConfig {
         applicationId = "com.meshwave.core"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 35 // Mantendo consistente com o compileSdk
 
-        // Lógica de Versão Dinâmica
-        val major = project.property("APP_VERSION_MAJOR") as String
-        val minor = project.property("APP_VERSION_MINOR") as String
-        val patch = project.property("APP_VERSION_PATCH") as String
-        val build = (project.property("APP_VERSION_BUILD") as String).toInt()
-        val suffix = project.property("APP_VERSION_SUFFIX") as String
-
-        versionCode = build
-        versionName = "$major.$minor.$patch-$suffix"
+        versionCode = 4 // Incrementando para a nova funcionalidade
+        versionName = "0.1.3-alpha"
 
         buildConfigField("String", "APP_VERSION_NAME", "\"$versionName\"")
 
@@ -45,7 +40,6 @@ android {
         }
     }
 
-    // --- BLOCO ATUALIZADO ---
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -53,11 +47,7 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
-    // --- FIM DO BLOCO ATUALIZADO ---
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.10"
-    }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -66,8 +56,17 @@ android {
 }
 
 dependencies {
-    // Dependência de Geohash correta
-    implementation("ch.hsr:geohash:1.4.0")
+    // Kotlinx Serialization
+    implementation(libs.kotlinx.serialization.json)
+
+    // =====================================================================
+    //           *** DEPENDÊNCIAS DO KTOR ADICIONADAS AQUI ***
+    // =====================================================================
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio) // Engine para a JVM/Android
+
+    // Geohash
+    implementation(libs.geohash)
 
     // Suas outras dependências
     implementation(libs.androidx.core.ktx)
@@ -88,4 +87,7 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    // ... outras dependências ...
+    implementation(libs.androidx.datastore.preferences)
+
 }
