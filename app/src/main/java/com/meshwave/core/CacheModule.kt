@@ -7,46 +7,37 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
-// Cria uma instância do DataStore para o nosso aplicativo.
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "meshwave_cache")
 
-/**
- * Módulo Hiper-Especializado para gerenciar o cache persistente do nó local.
- * Usa o Jetpack DataStore para salvar os dados em um arquivo de forma segura.
- */
 class CacheModule(private val context: Context) {
 
-    // Define as "chaves" para os dados que vamos salvar.
     companion object {
-        val LAST_KNOWN_GEOHASH_CLA = stringPreferencesKey("last_known_geohash_cla")
-        val LAST_KNOWN_GEOHASH_PRECISE = stringPreferencesKey("last_known_geohash_precise")
+        private val LOCAL_NODE_CPA_KEY = stringPreferencesKey("local_node_cpa")
+        private val SYNCED_NODES_CACHE_KEY = stringPreferencesKey("synced_nodes_cache")
     }
 
-    /**
-     * Salva o último geohash conhecido no arquivo de cache.
-     */
-    suspend fun saveLastKnownGeohash(cla: String, precise: String) {
-        context.dataStore.edit { cache ->
-            cache[LAST_KNOWN_GEOHASH_CLA] = cla
-            cache[LAST_KNOWN_GEOHASH_PRECISE] = precise
+    suspend fun saveLocalNode(node: NodeCPA) {
+        context.dataStore.edit { preferences ->
+            preferences[LOCAL_NODE_CPA_KEY] = Json.encodeToString(node)
         }
     }
 
-    /**
-     * Lê o último geohash conhecido do arquivo de cache.
-     * Retorna um Par (cla, precise) ou null se não houver nada salvo.
-     */
-    suspend fun getLastKnownGeohash(): Pair<String, String>? {
-        val preferences = context.dataStore.data.first()
-        val cla = preferences[LAST_KNOWN_GEOHASH_CLA]
-        val precise = preferences[LAST_KNOWN_GEOHASH_PRECISE]
+    suspend fun getLocalNode(): NodeCPA? {
+        val json = context.dataStore.data.first()[LOCAL_NODE_CPA_KEY]
+        return if (json != null) Json.decodeFromString<NodeCPA>(json) else null
+    }
 
-        return if (cla != null && precise != null) {
-            Pair(cla, precise)
-        } else {
-            null
+    suspend fun saveSyncedNodes(nodes: Map<String, NodeCPA>) {
+        context.dataStore.edit { preferences ->
+            preferences[SYNCED_NODES_CACHE_KEY] = Json.encodeToString(nodes)
         }
+    }
+
+    suspend fun getSyncedNodes(): Map<String, NodeCPA> {
+        val json = context.dataStore.data.first()[SYNCED_NODES_CACHE_KEY]
+        return if (json != null) Json.decodeFromString<Map<String, NodeCPA>>(json) else emptyMap()
     }
 }

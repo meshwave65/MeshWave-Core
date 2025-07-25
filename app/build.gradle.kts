@@ -89,5 +89,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     // ... outras dependências ...
     implementation(libs.androidx.datastore.preferences)
+    // Adicionada a biblioteca para converter objetos em JSON
+    implementation(libs.kotlinx.serialization.json)
 
 }

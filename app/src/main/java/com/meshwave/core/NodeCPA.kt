@@ -1,6 +1,8 @@
 package com.meshwave.core
 
-// Correto: Apenas a definição dos dados.
+import kotlinx.serialization.Serializable
+
+@Serializable // Habilita a conversão para JSON
 data class NodeCPA(
     val did: String,
     val username: String,

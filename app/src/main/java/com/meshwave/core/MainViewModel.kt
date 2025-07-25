@@ -4,8 +4,13 @@ import android.annotation.SuppressLint
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -18,96 +23,94 @@ data class AppUiState(
 
 @SuppressLint("MissingPermission")
 class MainViewModel(application: Application) : AndroidViewModel(application) {
+
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
 
     private val cacheModule = CacheModule(application)
-    // A instância local da classe IdentityModule.
     private val identityModule = IdentityModule(cacheModule)
     private val locationModule = LocationModule(application)
 
-    private val TTL1_STALE_MS = 30_000L
-    private val TTL2_UNRELIABLE_MS = 60_000L
+    private val networkManager: NetworkManager by lazy {
+        NetworkManager(
+            context = getApplication(),
+            viewModel = this,
+            scope = viewModelScope,
+            getInitialCpa = { identityModule.getLocalNode() }
+        )
+    }
+
+    private var locationCycleJob: Job? = null
 
     init {
         viewModelScope.launch {
             log("ViewModel iniciado. Carregando do cache...")
-            // CORRIGIDO: Usa a instância local 'identityModule'
             identityModule.initialize()
-            initializeLocalNodeUi()
-            log("Nó local inicializado a partir do cache.")
-
+            val syncedNodes = cacheModule.getSyncedNodes()
+            _uiState.update { it.copy(networkNodes = syncedNodes) }
+            updateLocalNodeInState()
+            log("Nó local inicializado. Cache sincronizado contém ${syncedNodes.size} nós.")
             startLocationUpdateCycle()
-            startTtlCheckCycle()
         }
     }
 
-    private fun initializeLocalNodeUi() {
-        // CORRIGIDO: Usa a instância local 'identityModule'
-        val localNode = identityModule.getOrCreateCurrentNodeCPA()
-        _uiState.update {
-            it.copy(
-                networkNodes = mapOf(localNode.did to localNode),
+    private fun startLocationUpdateCycle() {
+        locationCycleJob?.cancel()
+        locationCycleJob = viewModelScope.launch {
+            while (true) {
+                log("Ciclo de localização aguardando...")
+                locationModule.fetchLocationUpdates()
+                    .catch { e ->
+                        log("Falha no ciclo de localização: ${e.message}")
+                        identityModule.updateCpaStatus(LocationStatus.FAILED)
+                        updateLocalNodeInState()
+                    }
+                    .collect { locationData ->
+                        val currentNode = identityModule.getLocalNode()
+                        val b1 = currentNode.claGeohash
+                        val b2 = locationData.claGeohash
+                        log("Localização recebida: ${locationData.claGeohash}")
+
+                        if (b1 != b2) {
+                            log("Geohash alterado. Atualizando sistema...")
+                            identityModule.updateCpaWithLocation(locationData)
+                            val updatedNode = identityModule.getLocalNode()
+                            updateLocalNodeInState()
+                            networkManager.updateNodeCpa(updatedNode)
+                        } else {
+                            log("Geohash inalterado. Nenhuma atualização necessária.")
+                        }
+                    }
+                delay(15_000)
+            }
+        }
+    }
+
+    private fun updateLocalNodeInState() {
+        val localNode = identityModule.getLocalNode()
+        _uiState.update { currentState ->
+            val newNodes = currentState.networkNodes.toMutableMap()
+            newNodes[localNode.did] = localNode
+            currentState.copy(
+                networkNodes = newNodes,
                 localNodeDid = localNode.did
             )
         }
     }
 
-    private fun startLocationUpdateCycle() {
-        viewModelScope.launch {
-            while(true) {
-                log("Tentando obter localização...")
-                locationModule.fetchLocationUpdates()
-                    .catch { e ->
-                        log("Falha ao obter localização: ${e.message}")
-                        // CORRIGIDO: Usa a instância local 'identityModule'
-                        identityModule.updateCpaStatus(LocationStatus.FAILED)
-                    }
-                    .collect { locationData ->
-                        // CORRIGIDO: Usa a instância local 'identityModule'
-                        identityModule.updateCpaWithLocation(locationData)
-                        log("Localização recebida: ${locationData.claGeohash}")
-                    }
-                delay(10_000)
-            }
-        }
+    fun startAnnouncing() {
+        log("Iniciando anúncio e descoberta...")
+        networkManager.startAnnouncing()
+        networkManager.startDiscovery()
     }
 
-    private fun startTtlCheckCycle() {
-        viewModelScope.launch {
-            while (true) {
-                // CORRIGIDO: Usa a instância local 'identityModule'
-                val node = identityModule.getOrCreateCurrentNodeCPA()
-                val previousStatus = node.locationStatus
-                var newStatus = previousStatus
-
-                if (node.locationStatus == LocationStatus.UPDATED && (System.currentTimeMillis() - node.locationTimestamp > TTL1_STALE_MS)) {
-                    newStatus = LocationStatus.STALE
-                    log("TTL1 atingido. Status: UPDATED -> STALE")
-                } else if (node.locationStatus == LocationStatus.STALE && (System.currentTimeMillis() - node.locationTimestamp > TTL2_UNRELIABLE_MS)) {
-                    newStatus = LocationStatus.UNRELIABLE
-                    log("TTL2 atingido. Status: STALE -> UNRELIABLE")
-                }
-
-                if (newStatus != previousStatus) {
-                    // CORRIGIDO: Usa a instância local 'identityModule'
-                    identityModule.updateCpaStatus(newStatus)
-                }
-
-                updateUiFromIdentityModule()
-                delay(5_000)
-            }
-        }
+    fun startDiscovery() {
+        log("Comando de descoberta recebido. A descoberta agora é iniciada com o anúncio.")
+        networkManager.startDiscovery()
     }
 
-    private fun updateUiFromIdentityModule() {
-        // CORRIGIDO: Usa a instância local 'identityModule'
-        val updatedLocalNode = identityModule.getOrCreateCurrentNodeCPA().copy()
-        _uiState.update { currentState ->
-            val newNodes = currentState.networkNodes.toMutableMap()
-            newNodes[updatedLocalNode.did] = updatedLocalNode
-            currentState.copy(networkNodes = newNodes)
-        }
+    fun stopAllNetwork() {
+        networkManager.stopAll()
     }
 
     fun log(message: String) {
@@ -116,5 +119,51 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update {
             it.copy(logMessages = (it.logMessages + logMessage).takeLast(100))
         }
+    }
+
+    suspend fun onNodeDiscovered(discoveredNode: NodeCPA) {
+        var isNew = false
+        _uiState.update { currentState ->
+            if (currentState.networkNodes[discoveredNode.did] != discoveredNode) {
+                isNew = true
+                val newNodes = currentState.networkNodes.toMutableMap()
+                newNodes[discoveredNode.did] = discoveredNode
+                currentState.copy(networkNodes = newNodes)
+            } else {
+                currentState
+            }
+        }
+
+        if (isNew) {
+            log("Nó descoberto/atualizado: ${discoveredNode.username}")
+            cacheModule.saveSyncedNodes(_uiState.value.networkNodes)
+        }
+    }
+
+    suspend fun onNodeLost(serviceName: String) {
+        val username = serviceName.removePrefix("${NetworkManager.SERVICE_NAME_PREFIX}-")
+        var removedNode: NodeCPA? = null
+        _uiState.update { currentState ->
+            val nodeToFind = currentState.networkNodes.values.find { it.username == username }
+            if (nodeToFind != null) {
+                removedNode = nodeToFind
+                val newNodes = currentState.networkNodes.toMutableMap()
+                newNodes.remove(nodeToFind.did)
+                currentState.copy(networkNodes = newNodes)
+            } else {
+                currentState
+            }
+        }
+
+        if (removedNode != null) {
+            log("Nó perdido: ${removedNode!!.username}")
+            cacheModule.saveSyncedNodes(_uiState.value.networkNodes)
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        networkManager.stopAll()
+        locationCycleJob?.cancel()
     }
 }
