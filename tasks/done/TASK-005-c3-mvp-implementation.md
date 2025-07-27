@@ -26,3 +26,7 @@ Um repositório GitHub com o código funcional que atenda a todos os critérios 
 ## Relatório de Conclusão
 
 Esta é uma simulação de relatório para a tarefa {task_filename}.
+
+## Relatório de Conclusão
+
+Esta é uma simulação de relatório para a tarefa TASK-005-c3-mvp-implementation.md.
