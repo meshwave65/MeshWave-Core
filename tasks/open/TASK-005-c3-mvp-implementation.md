@@ -21,3 +21,8 @@ O trabalho consiste em implementar todos os requisitos descritos no `PROJECT_BLU
 ### Resultado Esperado
 Um repositório GitHub com o código funcional que atenda a todos os critérios especificados no documento de referência, acompanhado de um `README.md` detalhado para setup e execução.
 
+
+
+## Relatório de Conclusão
+
+Esta é uma simulação de relatório para a tarefa {task_filename}.

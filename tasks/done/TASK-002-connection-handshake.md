@@ -21,3 +21,12 @@ Assuma que um dispositivo A já descobriu a presença de um dispositivo B na red
 ### Resultado Esperado
 Um diagrama de sequência simples (pode ser em texto) mostrando o fluxo do handshake e uma lista das classes-chave responsáveis por criar e gerenciar os sockets de conexão.
 
+
+
+## Relatório de Conclusão
+
+Esta é uma simulação de relatório para a tarefa {task_filename}.
+
+## Relatório de Conclusão
+
+Esta é uma simulação de relatório para a tarefa TASK-002-connection-handshake.md.

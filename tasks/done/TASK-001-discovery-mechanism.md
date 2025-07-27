@@ -18,3 +18,12 @@ Identificar e detalhar o método exato que o Briar utiliza para que dispositivos
 ### Resultado Esperado
 Um relatório conciso explicando o mecanismo, listando as classes-chave envolvidas e descrevendo o formato da mensagem de descoberta.
 
+
+
+## Relatório de Conclusão
+
+Esta é uma simulação de relatório para a tarefa {task_filename}.
+
+## Relatório de Conclusão
+
+Esta é uma simulação de relatório para a tarefa TASK-001-discovery-mechanism.md.

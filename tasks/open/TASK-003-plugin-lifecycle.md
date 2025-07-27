@@ -18,3 +18,8 @@ Entender como o módulo de conectividade de rede local (LAN) é iniciado, gerenc
 ### Resultado Esperado
 Um resumo sobre a classe principal do plugin de LAN, detalhando seus métodos de ciclo de vida e como ela interage com o resto do sistema Briar para gerenciar o estado da rede.
 
+
+
+## Relatório de Conclusão
+
+Esta é uma simulação de relatório para a tarefa {task_filename}.
