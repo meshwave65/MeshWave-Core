@@ -1,8 +1,7 @@
-# .github/workflows/deploy-locaweb.yml
+# .github/workflows/deploy-locaweb.yml (v1.3 - Caminhos Corrigidos)
 
 name: Deploy to Locaweb via FTP
 
-# Gatilho: Executa esta ação sempre que houver um push no branch 'main'
 on:
   push:
     branches:
@@ -14,36 +13,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Baixa o código do seu repositório para a máquina virtual do GitHub
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    # 2. Configura o Node.js para poder compilar o frontend
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '20' # Use uma versão LTS do Node
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
 
-    # 3. Compila o projeto do frontend para gerar a pasta 'dist'
-    - name: Build Frontend
-      run: |
-        cd frontend
-        npm install
-        npm run build
+      - name: Build Frontend
+        # Navega para o novo local do frontend antes de compilar
+        run: |
+          cd app_engine/frontend
+          npm install
+          npm run build
 
-    # 4. Faz o deploy da pasta 'dist' para a Locaweb usando FTP
-    - name: FTP Deploy to Locaweb
-      uses: locaweb/ftp-deploy@1.0.0
-      with:
-        # Usa os segredos que configuramos no GitHub
-        host: ${{ secrets.LW_HOST }}
-        user: ${{ secrets.LW_USER }}
-        password: ${{ secrets.LW_PASS }}
-        
-        # Diretório local (a pasta que queremos enviar)
-        localDir: "frontend/dist" 
-        
-        # Diretório remoto (onde os arquivos devem ir na Locaweb)
-        # Geralmente 'public_html' ou 'www'. Verifique no seu painel.
-        remoteDir: "public_html" 
+      - name: FTP Deploy to Locaweb
+        uses: locaweb/ftp-deploy@1.0.0
+        with:
+          host: ${{ secrets.LW_HOST }}
+          user: ${{ secrets.LW_USER }}
+          password: ${{ secrets.LW_PASS }}
+          
+          # Aponta para a pasta 'dist' no novo local
+          localDir: "app_engine/frontend/dist"
+          
+          # Aponta para o diretório final no servidor
+          remoteDir: "public_html/mcp/meshwave/project_c3"
 

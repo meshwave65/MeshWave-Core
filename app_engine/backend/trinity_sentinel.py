@@ -1,4 +1,4 @@
-# backend/trinity_sentinel.py (v1.1 - A versão estável e funcional)
+# app_engine/backend/trinity_sentinel.py (v1.2 - Caminhos Corrigidos)
 
 import os
 import time
@@ -7,11 +7,12 @@ import requests
 import subprocess
 from git import Repo, Actor, GitCommandError
 
-# --- CONFIGURAÇÃO ---
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-BACKEND_DIR = os.path.join(PROJECT_ROOT, 'backend')
-FRONTEND_DIR = os.path.join(PROJECT_ROOT, 'frontend')
-CONFIG_FILE_PATH = os.path.join(PROJECT_ROOT, 'config.json')
+# --- CONFIGURAÇÃO COM NOVOS CAMINHOS ---
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+APP_ENGINE_DIR = os.path.join(PROJECT_ROOT, 'app_engine')
+BACKEND_DIR = os.path.join(APP_ENGINE_DIR, 'backend')
+FRONTEND_DIR = os.path.join(APP_ENGINE_DIR, 'frontend')
+CONFIG_FILE_PATH = os.path.join(PROJECT_ROOT, 'clients', 'meshwave', 'project_c3', 'config.json')
 BACKEND_PORT = 8000
 FRONTEND_PORT = 5173
 NGROK_API_URL = "http://localhost:4040/api/tunnels"
@@ -90,7 +91,7 @@ def update_config_on_github(new_url):
 
 # --- LOOP PRINCIPAL DO SENTINELA ---
 if __name__ == "__main__":
-    print("--- 🛡️  Iniciando o Sentinela da Trindade (v1.1 - Estável) 🛡️ ---")
+    print("--- 🛡️  Iniciando o Sentinela da Trindade (v1.2 - SaaS Arch) 🛡️ ---")
     while True:
         print(f"\n--- Verificação às {time.strftime('%Y-%m-%d %H:%M:%S')} ---")
         if not check_service("Backend", BACKEND_PORT):
