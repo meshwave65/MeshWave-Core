@@ -1,40 +1,64 @@
-# MeshWave - Project C3 Blueprint (v1.0)
+# MeshWave - Project C3 Blueprint (v2.0 - Turn-Based)
 
-**ID do Documento:** `P3-MASTER-PLAN-V1.0`
-**Data da Última Revisão:** 2025-07-26
+**ID do Documento:** `P3-MASTER-BLUEPRINT-V2.0`
+**Data da Última Revisão:** 2025-07-29
 **Status:** **ATIVO - Documento de Arquitetura e Engenharia de Referência**
 
 ---
 
 ## 1. Sumário Executivo
 
-Este documento é a "pedra basilar" que detalha a arquitetura, o design e o plano de implementação para o **"Project C3" (Centro de Comando e Controle de Projetos)**. O Project C3 é a fundação de software sobre a qual todo o ecossistema MeshWave será desenvolvido e gerenciado.
-
-O objetivo do Project C3 é criar uma "fábrica de software inteligente" para orquestrar o desenvolvimento dos três pilares do ecossistema: **MeshBlockchain** (Identidade), **Q-CyPIA** (Segurança) e o **MeshWave App** (Cliente P2P).
+Este documento é a "pedra basilar" que detalha a arquitetura, o design e o plano de implementação para o **"Project C3" (Centro de Comando e Controle de Projetos)**, nosso servidor MCP (Model Context Protocol). O Project C3 é a fundação de software sobre a qual todo o ecossistema MeshWave será desenvolvido e gerenciado.
 
 ## 2. Arquitetura do Sistema
 
 O Project C3 é uma aplicação web completa com uma arquitetura desacoplada e escalável.
 
-- **Backend:** Python com **FastAPI**, servindo como o cérebro central e a API RESTful.
-- **Banco de Dados:** **MySQL**, gerenciado pelo ORM **SQLAlchemy**.
-- **Frontend:** Um framework JavaScript moderno como **React (com Vite)**, permitindo múltiplas interfaces especializadas.
-- **Infraestrutura de Versionamento:** **Git/GitHub**, com o repositório `MeshWave-Core` como o "chão de fábrica".
+- **Backend:** Python com **FastAPI**, rodando localmente em Linux e exposto via **ngrok**.
+- **Frontend:** **React (com Vite)**, com arquivos estáticos hospedados na **Locaweb**.
+- **Ponte de Configuração:** Um arquivo `config.json` hospedado no próprio site (`meshwave.com.br/mcp/...`) servirá como um "ponteiro simbólico" para a URL da API.
+- **Banco de Dados:** **MySQL**, com todas as operações de data/hora utilizando **Timestamp Unix UTC**.
 
-## 3. Design da Interface e Navegação
+## 3. Gerenciamento de Tarefas e Fluxo de Trabalho (Modelo "Turn-Based")
 
-A UI do Project C3 é projetada para ser intuitiva e contextual, através de uma **Navegação Hierárquica Dinâmica**:
+O sistema utiliza um modelo de "documento vivo" com um sistema de turnos explícito para garantir clareza e responsabilidade.
 
-1.  **Nível 1: Seleção de Segmento:** Exibe os 8 segmentos principais do projeto.
-2.  **Nível 2: Seleção de Fase:** Exibe as 4 fases de um segmento.
-3.  **Nível 3: Seleção de Módulo:** Exibe os módulos de uma fase.
-4.  **Nível 4: Dashboard do Módulo:** Painel de controle focado, com um "Breadcrumb" para orientação contextual.
+- **Diretório Único:** Todas as tarefas residirão em `/tasks`.
+- **Estrutura do Arquivo:** Um arquivo Markdown que acumula blocos de conteúdo cronologicamente (Dúvida, Esclarecimento, Relatório), cada um com seu próprio timestamp no cabeçalho do bloco.
+- **Metadados Essenciais (Cabeçalho YAML):**
+    - `task_id`, `title`, `assigned_to`.
+    - `status_agente`: O estado do trabalho (1-Open, 2-In_Progress, 3-On_Hold, 4-Done, 5-Canceled).
+    - `turn_holder`: **O metadado de controle de fluxo.**
+        - `0`: Ação requerida do **Agente/Consultor**.
+        - `1`: Ação requerida do **Gestor/Orquestrador**.
 
-## 4. Plano de Implementação do MVP
+## 4. O Agente Sentinela: Controle de Tempo e SLA
 
-A implementação seguirá um plano de engenharia detalhado e validado por especialistas.
+Um serviço independente ("Sentinela") gerenciará o ciclo de vida temporal das tarefas.
 
-### 4.1. Estrutura do Repositório e Documentação
+- **Base de Dados do Sentinela:** Manterá uma base de dados separada com `task_id`, `timestamp_creation`, e `timestamp_deadline`.
+- **Visualização por Cor (Determinada pelo Sentinela):**
+    - `0` (Aberta) -> 🔵 Azul
+    - `1` (Em Andamento) -> 🟢 Verde
+    - `2` (Atenção - Atrasada) -> 🟡 Amarelo
+    - `3` (Urgente - Atraso Crítico) -> 🔴 Vermelho
+    - `4` (Concluída no Prazo) -> ⚫️ Cinza
+    - `5` (Concluída com Atraso) -> ⚫️ Preto
 
-- **Estrutura de Diretórios:**
+## 5. Plano de Implementação do MVP
+
+A implementação seguirá este plano de engenharia detalhado.
+
+- **Estrutura do Repositório:** Adotar a estrutura SaaS com `app_engine/` e `clients/`.
+- **Backend:**
+    - Modelar as tabelas no SQLAlchemy, incluindo o campo `turn_holder` na tabela de tarefas.
+    - Criar um script `seed_database.py`.
+    - Implementar os endpoints da API para ler a hierarquia e gerenciar tarefas, permitindo a filtragem por `status_agente` e `turn_holder`.
+- **Frontend:**
+    - Implementar a navegação hierárquica dinâmica.
+    - A aplicação deve buscar a URL da API do `config.json` no domínio `meshwave.com.br`.
+    - O dashboard deve exibir as tarefas com as cores definidas pelo `status_sla` do Sentinela.
+- **Documentação:** Manter um `README.md` detalhado e este `PROJECT_BLUEPRINT.md` atualizados.
+
+---
 
